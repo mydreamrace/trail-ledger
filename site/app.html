@@ -45,7 +45,7 @@ header h1{font-size:clamp(46px,8vw,88px);font-weight:900}
 header h1 span{color:var(--accent)}
 .sync{text-align:right;font-family:var(--mono);font-size:12.5px;color:var(--muted)}
 
-.hero{position:relative;background:var(--map-bg);color:var(--map-ink);border-radius:10px;overflow:hidden;aspect-ratio:16/7;min-height:340px;max-width:100%}
+.hero{position:relative;background:var(--map-bg);color:var(--map-ink);border-radius:10px;overflow:hidden;height:clamp(260px,30vw,360px);max-width:100%}
 .hero #map{position:absolute;inset:0;background:var(--map-bg)}
 .hero .leaflet-container{font-family:var(--body);background:var(--map-bg)}
 .hero .leaflet-control-attribution{background:rgba(14,23,20,.7);color:#9fb3a8;font-size:10.5px}
@@ -95,13 +95,13 @@ header h1 span{color:var(--accent)}
 .pb.is-pb .t{color:var(--pb-ink)}
 @media (max-width:640px){.pb-row{grid-template-columns:1fr;gap:6px}.pb-row-label{padding-top:0;font-size:18px}}
 
-.trends{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.trends{display:grid;grid-template-columns:1fr 1fr;gap:14px;align-items:start}
 @media (max-width:820px){.trends{grid-template-columns:1fr}}
 
 /* readiness panel: fitness, focus, weather */
-.ready{display:flex;flex-direction:column;gap:14px}
+.ready{display:flex;flex-direction:column;gap:12px}
 .ready .blk{display:flex;flex-direction:column;gap:8px}
-.ready .blk + .blk{border-top:1px solid var(--line);padding-top:14px}
+.ready .blk + .blk{border-top:1px solid var(--line);padding-top:12px}
 .fit-nums{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
 .fit-nums strong{font-family:var(--display);font-size:34px;font-weight:800;line-height:1;display:block}
 .fit-nums span{font-family:var(--mono);font-size:10.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
@@ -121,8 +121,8 @@ header h1 span{color:var(--accent)}
 .wx .temp{font-family:var(--display);font-size:44px;font-weight:800;line-height:.9;grid-row:span 2}
 .wx .cond{font-weight:600;font-size:14px}
 .wx .meta{font-size:12.5px;color:var(--muted)}
-.weather{display:flex;flex-direction:column;gap:14px}
-.weather #wx{display:flex;flex-direction:column;gap:14px;flex:1}
+.weather{display:flex;flex-direction:column;gap:0}
+.weather #wx{display:flex;flex-direction:column;gap:12px}
 .hours{display:grid;grid-template-columns:repeat(8,minmax(0,1fr));border:1px solid var(--line);border-radius:6px;overflow:hidden}
 .hours div{display:flex;flex-direction:column;align-items:center;gap:2px;padding:8px 2px;border-left:1px solid var(--line);font-size:12px}
 .hours div:first-child{border-left:0}
@@ -133,16 +133,18 @@ header h1 span{color:var(--accent)}
 .hours .best{background:var(--accent-soft)}
 .wx-window{margin-top:auto;font-size:13px;background:var(--accent-soft);color:var(--ink);padding:8px 10px;border-radius:6px}
 .wx-window b{color:var(--accent)}
-.panel{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:16px;min-width:0}
-.panel h3{margin:0 0 4px;font-size:14px;font-weight:600}
-.panel .sub{font-size:12.5px;color:var(--muted);margin-bottom:10px}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:14px 16px;min-width:0}
+.panel h3{margin:0;font-size:14px;font-weight:600}
+.p-head{display:flex;justify-content:space-between;align-items:baseline;gap:10px;flex-wrap:wrap;margin-bottom:8px}
+.p-head .sub{margin:0}
+.panel .sub{font-size:12px;color:var(--muted);margin-bottom:8px}
 .chart{overflow-x:auto}
 .chart svg{display:block;width:100%;height:auto;min-width:300px}
 .legend{display:flex;gap:14px;font-size:12px;color:var(--muted);margin-top:6px;flex-wrap:wrap}
 .legend i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:5px;vertical-align:-1px}
-.streaks{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:14px;padding-top:14px;border-top:1px solid var(--line)}
-.streaks strong{font-family:var(--display);font-size:30px;font-weight:800;display:block;line-height:1}
-.streaks span{font-size:12px;color:var(--muted)}
+.streaks{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:10px;padding-top:10px;border-top:1px solid var(--line)}
+.streaks strong{font-family:var(--display);font-size:24px;font-weight:800;display:block;line-height:1}
+.streaks span{font-size:11.5px;color:var(--muted)}
 
 .log{background:var(--surface);border:1px solid var(--line);border-radius:8px;overflow:hidden}
 .row{display:grid;grid-template-columns:64px minmax(0,1.6fr) repeat(4,minmax(0,1fr));gap:14px;align-items:center;padding:12px 16px;border-bottom:1px solid var(--line)}
@@ -212,6 +214,8 @@ async function main(){
 function render(d){
   const t=d.totals, today=new Date();
   const goals=(d.goals||[]).map(g=>({...g,days:Math.ceil((new Date(g.date+"T08:00")-today)/864e5)})).filter(g=>g.days>=0).sort((a,b)=>a.days-b.days);
+  const wkTot=d.weekly.map(w=>w.run+w.ride+w.swim+w.other);
+  const wkNow=wkTot[wkTot.length-1]||0, wkAvg=wkTot.slice(-4).reduce((a,b)=>a+b,0)/Math.max(1,Math.min(4,wkTot.length)), wkMax=Math.max(0,...wkTot);
   $("#app").innerHTML = `
   ${d.sample?`<div class="sample"><span class="dot"></span><span><b>Sample data.</b> These numbers are generated for testing. Your Intervals.icu history replaces them on the first nightly run.</span></div>`:""}
   <header>
@@ -266,9 +270,14 @@ function render(d){
   <section>
     <div class="sec-head"><h2>Training Load</h2><span class="eyebrow">Last 16 weeks</span></div>
     <div class="trends">
-      <div class="panel"><h3>Weekly volume</h3><div class="sub">Hours per week by sport</div><div class="chart" id="weekly"></div>
-        <div class="legend"><span><i style="background:var(--accent)"></i>Run</span><span><i style="background:var(--muted);opacity:.55"></i>Ride</span><span><i style="background:var(--pb)"></i>Swim</span><span><i style="background:var(--line)"></i>Other</span></div></div>
-      <div class="panel"><h3>Running distance, year over year</h3><div class="sub">Cumulative km, January to December</div><div class="chart" id="yoy"></div>
+      <div class="panel"><div class="p-head"><h3>Weekly volume</h3><span class="sub">Hours by sport</span></div><div class="chart" id="weekly"></div>
+        <div class="legend"><span><i style="background:var(--accent)"></i>Run</span><span><i style="background:var(--muted);opacity:.55"></i>Ride</span><span><i style="background:var(--pb)"></i>Swim</span><span><i style="background:var(--line)"></i>Other</span></div>
+        <div class="streaks num">
+          <div><strong>${wkNow.toFixed(1)} h</strong><span>this week</span></div>
+          <div><strong>${wkAvg.toFixed(1)} h</strong><span>4-week average</span></div>
+          <div><strong>${wkMax.toFixed(1)} h</strong><span>biggest week</span></div>
+        </div></div>
+      <div class="panel"><div class="p-head"><h3>Running distance</h3><span class="sub">Cumulative km, ${d.yoy.this_year} vs ${d.yoy.last_year}</span></div><div class="chart" id="yoy"></div>
         <div class="legend"><span><i style="background:var(--accent)"></i>${d.yoy.this_year}</span><span><i style="background:var(--muted)"></i>${d.yoy.last_year}</span></div>
         <div class="streaks num">
           <div><strong>${d.streaks.run_streak}</strong><span>day run streak</span></div>
@@ -276,7 +285,7 @@ function render(d){
           <div><strong>${d.streaks.vs_last_pct==null?"n/a":(d.streaks.vs_last_pct>0?"+":"")+d.streaks.vs_last_pct+"%"}</strong><span>run km vs ${d.yoy.last_year} to date</span></div>
         </div></div>
       ${readyPanel(d)}
-      ${d.weather?`<div class="panel weather"><h3>Today in ${esc(d.weather.place)}</h3><div class="sub">Live forecast, updates every time you open the page</div><div id="wx"><p>Loading forecast…</p></div></div>`:""}
+      ${d.weather?`<div class="panel weather"><div class="p-head"><h3>Today in ${esc(d.weather.place)}</h3><span class="sub">Live forecast</span></div><div id="wx"><p>Loading forecast…</p></div></div>`:""}
     </div>
   </section>
 
@@ -391,7 +400,7 @@ function mini(route){
 
 function niceMax(v,step){return Math.max(step,Math.ceil(v/step)*step)}
 function weeklyChart(weeks){
-  const W=600,H=220,L=36,B=26,T=10,R=8,n=weeks.length;
+  const W=600,H=170,L=36,B=24,T=8,R=8,n=weeks.length;
   const tot=weeks.map(w=>w.run+w.ride+w.swim+w.other), max=niceMax(Math.max(...tot,1),4), step=max/4;
   const bw=(W-L-R)/n, y=v=>T+(H-T-B)*(1-v/max);
   let s=`<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Weekly training hours for the last 16 weeks">`;
@@ -405,7 +414,7 @@ function weeklyChart(weeks){
 }
 
 function yoyChart(d){
-  const W=400,H=220,L=44,B=26,T=14,R=14;
+  const W=600,H=170,L=44,B=24,T=16,R=14;
   const max=niceMax(Math.max(...d.this,...d.last,1),500), step=max/4;
   const x=i=>L+(W-L-R)*i/11, y=v=>T+(H-T-B)*(1-v/max);
   const path=a=>a.map((v,i)=>(i?"L":"M")+x(i).toFixed(1)+" "+y(v).toFixed(1)).join(" ");
