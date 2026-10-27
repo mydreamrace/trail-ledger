@@ -9,6 +9,7 @@ Needs two environment variables (GitHub secrets in the workflow):
 """
 import base64
 import datetime as dt
+import http.client
 import json
 import os
 import pathlib
@@ -55,7 +56,8 @@ def api_get(path, params=None):
                 time.sleep(min(60, 2 ** attempt * 2))
                 continue
             raise
-        except urllib.error.URLError:
+        except (urllib.error.URLError, http.client.HTTPException, ConnectionError, TimeoutError, OSError):
+            # dropped connections, resets and timeouts: wait and try again
             time.sleep(min(60, 2 ** attempt * 2))
     raise RuntimeError("Gave up on " + path)
 
@@ -86,7 +88,7 @@ def main():
         found += batch
         start = stop + dt.timedelta(days=1)
 
-    new = updated = skipped = 0
+    new = updated = skipped = failed = 0
     for act in found:
         aid = str(act.get("id"))
         # Activities Intervals imported from Strava come back as empty stubs (Strava's API terms).
@@ -100,7 +102,11 @@ def main():
                 index[aid] = rec
                 updated += 1
             continue
-        raw = api_get(f"/activity/{aid}/streams.json", {"types": "time,distance,latlng"})
+        try:
+            raw = api_get(f"/activity/{aid}/streams.json", {"types": "time,distance,latlng"})
+        except RuntimeError:
+            failed += 1  # not saved, so the next run tries this one again
+            continue
         rec, track = process_activity(act, parse_streams(raw))
         index[aid] = rec
         track_path.write_text(json.dumps(track, separators=(",", ":")))
@@ -112,6 +118,8 @@ def main():
 
     index_path.write_text(json.dumps(index, separators=(",", ":")))
     print(f"Done: {new} new, {updated} updated, {len(index)} total in cache.")
+    if failed:
+        print(f"{failed} activities couldn't be downloaded this time. They'll be retried on the next run.")
 
     # Fitness (CTL), fatigue (ATL) and ramp rate, as Intervals.icu calculates them, for the last ~4 months.
     w_oldest = (dt.date.today() - dt.timedelta(days=120)).isoformat()
