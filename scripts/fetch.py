@@ -125,10 +125,20 @@ def main():
     w_oldest = (dt.date.today() - dt.timedelta(days=120)).isoformat()
     try:
         wellness = api_get(f"/athlete/{athlete}/wellness", {"oldest": w_oldest, "newest": dt.date.today().isoformat()}) or []
-        keep = [{"date": w.get("id"), "ctl": w.get("ctl"), "atl": w.get("atl"), "ramp": w.get("rampRate")}
-                for w in wellness if isinstance(w, dict) and w.get("id")]
+        extra = {"vo2max": "vo2max", "rhr": "restingHR", "hrv": "hrv", "sleep_s": "sleepSecs", "weight": "weight"}
+        keep = []
+        for w in wellness:
+            if not isinstance(w, dict) or not w.get("id"):
+                continue
+            row = {"date": w.get("id"), "ctl": w.get("ctl"), "atl": w.get("atl"), "ramp": w.get("rampRate")}
+            for ours, theirs in extra.items():
+                if w.get(theirs) is not None:
+                    row[ours] = w[theirs]
+            keep.append(row)
         (CACHE / "wellness.json").write_text(json.dumps(keep, separators=(",", ":")))
-        print(f"Saved {len(keep)} days of fitness data.")
+        have = {k: sum(1 for r in keep if k in r) for k in extra}
+        print(f"Saved {len(keep)} days of fitness data. Days with: "
+              + ", ".join(f"{k} {n}" for k, n in have.items()))
     except Exception as e:  # fitness is a nice-to-have; the site falls back to its own estimate
         print("Couldn't fetch fitness data:", e)
     if skipped:

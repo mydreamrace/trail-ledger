@@ -134,6 +134,11 @@ header h1 span{color:var(--accent)}
 .ready .blk + .blk{border-top:1px solid var(--line);padding-top:12px}
 .fit-nums{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
 .fit-nums strong{font-family:var(--display);font-size:34px;font-weight:800;line-height:1;display:block}
+.health{display:grid;grid-template-columns:repeat(auto-fit,minmax(70px,1fr));gap:8px;border-top:1px solid var(--line);padding-top:10px}
+.health strong{font-family:var(--display);font-size:24px;font-weight:800;line-height:1;display:block}
+.health strong small{font-family:var(--body);font-size:11px;font-weight:500;color:var(--muted);margin-left:2px}
+.health span{font-family:var(--mono);font-size:10px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+.health em{font-style:normal;color:var(--accent)}
 .fit-nums span{font-family:var(--mono);font-size:10.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
 .zone{display:inline-flex;align-items:center;gap:6px;font-size:12.5px;color:var(--muted)}
 .zone b{font-family:var(--mono);font-size:10.5px;letter-spacing:.06em;text-transform:uppercase;padding:2px 8px;border-radius:999px;font-weight:500}
@@ -354,6 +359,7 @@ function readyPanel(d){
       <div class="zone ${zoneCls}"><b>${esc(f.zone)}</b>${esc(f.zone_note)}</div>
       ${tr.length>1?`<div class="spark" title="Fitness over the last ${tr.length} days"><svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" role="img" aria-label="Fitness trend, last ${tr.length} days"><polyline points="${pts} ${W},${H} 0,${H}" fill="var(--accent)" opacity=".12" stroke="none"/><polyline points="${pts}" fill="none" stroke="var(--accent)" stroke-width="2" vector-effect="non-scaling-stroke"/></svg></div>`:""}
       <p>${f.ramp!=null?`${f.ramp>=0?"+":""}${f.ramp} fitness this week. `:""}${f.source==="estimate"?"Estimated from training load.":"From Intervals.icu."}</p>
+      ${healthRow(f.health)}
     </div>`;
   }
   if(fo){
@@ -408,6 +414,16 @@ async function loadWeather(w){
   }
 }
 
+const HEALTH=[["vo2max","VO2max","",v=>v.toFixed(0)],["rhr","Resting HR"," bpm",v=>v.toFixed(0)],["hrv","HRV"," ms",v=>v.toFixed(0)],
+  ["sleep_s","Sleep"," h",v=>(v/3600).toFixed(1)],["weight","Weight"," kg",v=>v.toFixed(1)]];
+function healthRow(h){
+  if(!h) return "";
+  const items=HEALTH.filter(([k])=>h[k]);
+  if(!items.length) return "";
+  return `<div class="health num">${items.map(([k,label,unit,f])=>{const x=h[k];
+    const ch=x.change==null||x.change===0?"":` <em>${x.change>0?"+":"−"}${k==="sleep_s"?(Math.abs(x.change)/3600).toFixed(1):Math.abs(x.change).toFixed(k==="weight"?1:0)}</em>`;
+    return `<div title="Latest: ${dateFmt(x.date,{month:"short",day:"numeric"})}. Change vs 30 days ago."><strong>${f(x.value)}<small>${unit}</small></strong><span>${label}${ch}</span></div>`}).join("")}</div>`;
+}
 const LIGHT={green:"On track",yellow:"Needs work",red:"Not ready"};
 function lightBox(g){
   if(!g.light) return "";

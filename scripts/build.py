@@ -128,8 +128,23 @@ def compute_fitness(acts, today):
     past = [d for d in dates if d <= week_ago]
     ramp = ctl - series[past[-1]][0] if past else None
     trend = [round(series[d][0], 1) for d in dates[-90:]]
+
+    # Health numbers, when the watch shares them: latest value plus change over ~30 days
+    health = {}
+    if wpath.exists():
+        rows = sorted(json.loads(wpath.read_text()), key=lambda r: r.get("date") or "")
+        month_ago = (today - dt.timedelta(days=30)).isoformat()
+        for key in ("vo2max", "rhr", "hrv", "sleep_s", "weight"):
+            vals = [(r["date"], r[key]) for r in rows if r.get(key) not in (None, 0)]
+            if not vals:
+                continue
+            latest = vals[-1][1]
+            older = [v for d, v in vals if d <= month_ago]
+            health[key] = {"value": round(latest, 1), "date": vals[-1][0],
+                           "change": round(latest - older[-1], 1) if older else None}
     return {"ctl": round(ctl), "atl": round(atl), "form": round(form), "zone": zone[1], "zone_note": zone[2],
-            "ramp": round(ramp, 1) if ramp is not None else None, "trend": trend, "source": source}
+            "ramp": round(ramp, 1) if ramp is not None else None, "trend": trend, "source": source,
+            "health": health}
 
 
 def training_metrics(last4):
