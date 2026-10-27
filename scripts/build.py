@@ -475,6 +475,31 @@ def main():
         if segs:
             heat.append({"c": a["cat"], "y": parse_start(a).year, "p": segs})
 
+    # ---- infographic extras: every active day this year, recent route shapes, lifetime totals
+    day_map = {}
+    for a in this_year:
+        d = a["start"][:10]
+        e = day_map.setdefault(d, {"d": d, "run": 0.0, "ride": 0.0, "swim": 0.0, "other": 0.0, "min": 0})
+        e[a["cat"]] += round(a["moving_s"] / 60)  # minutes per sport
+        e["min"] += round(a["moving_s"] / 60)
+    year_days = sorted(day_map.values(), key=lambda e: e["d"])
+
+    shapes = []
+    for a in reversed(acts):
+        if len(shapes) >= 40:
+            break
+        if a["cat"] not in ("run", "ride") or not tracks.get(a["id"], {}).get("route"):
+            continue
+        segs = public_route(a["id"], 30)
+        if segs:
+            shapes.append({"c": a["cat"], "n": a["name"], "d": a["start"][:10], "km": round(a["dist_m"] / 1000, 1), "p": segs})
+
+    lifetime = {"km": round(sum(a["dist_m"] for a in acts) / 1000),
+                "elev_m": round(sum(a["elev_m"] for a in acts)),
+                "hours": round(sum(a["moving_s"] for a in acts) / 3600),
+                "count": len(acts),
+                "since": acts[0]["start"][:4] if acts else None}
+
     # ---- recent activities
     recent = []
     for a in reversed(acts[-6:]):
@@ -504,6 +529,9 @@ def main():
         "recent": recent,
         "heat": {"center": center, "radius_km": radius_km, "label": map_cfg.get("label"), "routes": heat},
         "count_all": len(acts),
+        "year_days": year_days,
+        "shapes": shapes,
+        "lifetime": lifetime,
     }
 
     if OUT.exists():
@@ -512,7 +540,7 @@ def main():
     (OUT / "data/stats.json").write_text(json.dumps(stats, separators=(",", ":")))
 
     # site/*.html are page fragments (head bits, then <!--body-->, then content).
-    for src, dst in (("app.html", "index.html"), ("wall.html", "wall.html")):
+    for src, dst in (("app.html", "index.html"), ("wall.html", "wall.html"), ("v2.html", "v2.html")):
         frag_path = ROOT / "site" / src
         if not frag_path.exists():
             continue

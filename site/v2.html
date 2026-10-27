@@ -1,0 +1,432 @@
+<title>Patrick's Trail Ledger</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=Figtree:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<style>
+/* Race-day infographic. Reads as a story, top to bottom:
+   season hero (numbers + map) > today (form dial, focus, weather) > races as bibs >
+   the year as a calendar + sport mix > records > every recent route as a shape.
+   Colour carries meaning: one hue per sport, gold for records, traffic lights for readiness. */
+:root{
+  --bg:#f3f4f8; --paper:#ffffff; --ink:#141829; --muted:#5f667c; --line:#e1e4ed; --faint:#eceef4;
+  --run:#f2552c; --ride:#2f7be6; --swim:#0aa596; --other:#8a78f0; --gold:#e9a800; --gold-ink:#8a6200;
+  --go:#1f9d55; --warn:#e5a300; --stop:#d93a2b;
+  --map-bg:#11152a;
+  --display:"Bricolage Grotesque","Arial Black",system-ui,sans-serif;
+  --body:"Figtree",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --mono:"JetBrains Mono",ui-monospace,Menlo,Consolas,monospace;
+  color-scheme:light;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0d1020; --paper:#161a2d; --ink:#eef0f8; --muted:#9aa1ba; --line:#272c45; --faint:#1d2238;
+  --run:#ff6a45; --ride:#5ea3ff; --swim:#2ad3c2; --other:#a796ff; --gold:#ffc83d; --gold-ink:#ffc83d;
+  --go:#3fd07a; --warn:#f5c33b; --stop:#ff6b5e; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0d1020; --paper:#161a2d; --ink:#eef0f8; --muted:#9aa1ba; --line:#272c45; --faint:#1d2238;
+  --run:#ff6a45; --ride:#5ea3ff; --swim:#2ad3c2; --other:#a796ff; --gold:#ffc83d; --gold-ink:#ffc83d;
+  --go:#3fd07a; --warn:#f5c33b; --stop:#ff6b5e; color-scheme:dark}
+
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--body);font-size:15px;line-height:1.5;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:24px 64px}
+.wrap{max-width:1120px;margin:0 auto;display:flex;flex-direction:column;gap:64px}
+.num{font-variant-numeric:tabular-nums}
+h1,h2,h3{font-family:var(--display);margin:0;line-height:.95;text-wrap:balance;letter-spacing:-.01em}
+.kicker{font-family:var(--mono);font-size:11.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted)}
+.chapter{display:flex;align-items:baseline;gap:14px;margin-bottom:22px;flex-wrap:wrap}
+.chapter .no{font-family:var(--mono);font-size:12px;color:var(--muted)}
+.chapter h2{font-size:clamp(28px,4vw,42px);font-weight:800}
+.chapter .ctrls{margin-left:auto}
+.status{color:var(--muted);text-align:center;padding:60px 0}
+.sample{font-size:13px;color:var(--muted);border:1px dashed var(--line);padding:8px 12px;border-radius:8px}
+
+/* strip of sport colours, used like a race-bib band */
+.band{display:flex;height:6px;border-radius:3px;overflow:hidden}
+.band i{flex:1}
+.band i:nth-child(1){background:var(--run)} .band i:nth-child(2){background:var(--ride)} .band i:nth-child(3){background:var(--swim)} .band i:nth-child(4){background:var(--gold)}
+
+/* ---------- hero ---------- */
+.mast{display:flex;justify-content:space-between;align-items:end;gap:16px;flex-wrap:wrap;margin-bottom:14px}
+.mast h1{font-size:clamp(44px,7.5vw,92px);font-weight:800;letter-spacing:-.03em}
+.mast h1 em{font-style:normal;color:var(--run)}
+.mast .sync{font-family:var(--mono);font-size:12px;color:var(--muted);text-align:right}
+.hero{display:grid;grid-template-columns:minmax(0,1.5fr) minmax(0,1fr);gap:16px;margin-top:16px}
+@media (max-width:860px){.hero{grid-template-columns:1fr}}
+.mapcard{position:relative;border-radius:16px;overflow:hidden;background:var(--map-bg);min-height:380px}
+#map{position:absolute;inset:0;background:var(--map-bg)}
+.leaflet-container{background:var(--map-bg);font-family:var(--body)}
+.leaflet-control-attribution{background:rgba(13,16,32,.7)!important;color:#8f97b5!important;font-size:10px!important}
+.leaflet-control-attribution a{color:#c3c9e0!important}
+.leaflet-control-zoom a{background:rgba(13,16,32,.85)!important;color:#eef0f8!important;border-color:rgba(255,255,255,.15)!important}
+.heat-canvas{position:absolute;top:0;left:0;pointer-events:none}
+.map-tag{position:absolute;z-index:800;left:16px;bottom:14px;color:#eef0f8;pointer-events:none}
+.map-tag b{display:block;font-family:var(--display);font-size:22px;font-weight:800}
+.map-tag span{font-family:var(--mono);font-size:10.5px;letter-spacing:.12em;text-transform:uppercase;opacity:.7}
+.chips{position:absolute;z-index:800;top:14px;left:14px;display:flex;gap:6px}
+.chips button{font:600 12px var(--body);color:#eef0f8;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.18);border-radius:999px;padding:4px 11px;cursor:pointer}
+.chips button[aria-pressed="true"]{background:#eef0f8;color:#11152a}
+.bigs{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.big{background:var(--paper);border-radius:16px;padding:16px 18px 18px;display:flex;flex-direction:column;gap:2px;position:relative;overflow:hidden}
+.big::before{content:"";position:absolute;left:0;top:0;bottom:0;width:5px;background:var(--c,var(--run))}
+.big .v{font-family:var(--display);font-weight:800;font-size:clamp(34px,4.4vw,52px);line-height:1;letter-spacing:-.02em}
+.big .u{font-size:14px;font-weight:600;color:var(--muted);margin-left:4px;letter-spacing:0}
+.big .fun{font-size:12.5px;color:var(--muted);margin-top:6px}
+.big .fun b{color:var(--ink)}
+.life{grid-column:1 / -1;font-size:13px;color:var(--muted);padding:4px 2px 0}
+.life b{color:var(--ink)}
+
+/* ---------- today ---------- */
+.today{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:16px;align-items:stretch}
+@media (max-width:860px){.today{grid-template-columns:1fr}}
+.tcard{background:var(--paper);border-radius:16px;padding:16px 20px;display:flex;flex-direction:column;justify-content:center;gap:6px}
+.dial{display:flex;align-items:center;gap:16px}
+.dial svg{width:150px;height:auto;display:block}
+.dial .zone{font-family:var(--display);font-weight:800;font-size:24px;line-height:1}
+.focus p{margin:0;font-size:17px;font-weight:600;line-height:1.35}
+.vitals{display:flex;gap:18px;flex-wrap:wrap;font-size:13px;color:var(--muted);margin-top:4px}
+.vitals b{color:var(--ink);font-size:15px}
+.wx{display:flex;align-items:center;gap:14px}
+.wx .t{font-family:var(--display);font-weight:800;font-size:54px;line-height:.9}
+.wx .go{font-size:13px}
+.wx .go b{color:var(--go)}
+
+/* ---------- race bibs ---------- */
+.bibs{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:18px}
+.bib{position:relative;background:var(--paper);border-radius:14px;overflow:hidden;display:flex;flex-direction:column;
+  box-shadow:0 1px 0 var(--line),0 12px 30px -18px rgba(20,24,41,.35)}
+.bib .strip{height:14px;background:var(--c)}
+.bib .pin{position:absolute;top:24px;width:10px;height:10px;border-radius:50%;background:var(--bg);box-shadow:inset 0 1px 2px rgba(0,0,0,.25)}
+.bib .pin.l{left:14px} .bib .pin.r{right:14px}
+.bib .body{padding:16px 20px 20px;display:flex;flex-direction:column;gap:14px}
+.bib .ev{text-align:center}
+.bib .ev .kicker{font-size:10.5px}
+.bib .ev h3{font-size:22px;font-weight:800;text-transform:uppercase;margin-top:4px}
+.bib .no{display:flex;align-items:center;justify-content:center;gap:16px}
+.bib .digits{font-family:var(--display);font-weight:800;font-size:84px;line-height:.85;letter-spacing:-.04em}
+.bib .digits small{display:block;font-family:var(--mono);font-size:10.5px;font-weight:400;letter-spacing:.14em;color:var(--muted);text-align:center;margin-top:8px}
+.light{display:flex;flex-direction:column;align-items:center;gap:6px}
+.lamps{display:flex;flex-direction:column;gap:5px;padding:7px 6px;border-radius:999px;background:#141829}
+.lamps i{width:13px;height:13px;border-radius:50%;background:#2c3150}
+.light.red .lamps i:nth-child(1){background:var(--stop);box-shadow:0 0 10px var(--stop)}
+.light.yellow .lamps i:nth-child(2){background:var(--warn);box-shadow:0 0 10px var(--warn)}
+.light.green .lamps i:nth-child(3){background:var(--go);box-shadow:0 0 10px var(--go)}
+.light span{font-family:var(--mono);font-size:10px;letter-spacing:.06em;text-transform:uppercase;white-space:nowrap}
+.light.red span{color:var(--stop)} .light.yellow span{color:var(--warn)} .light.green span{color:var(--go)}
+.bars{display:flex;flex-direction:column;gap:10px;border-top:2px dashed var(--line);padding-top:14px}
+.bar .t{display:flex;justify-content:space-between;font-size:12.5px;margin-bottom:5px}
+.bar .t span{color:var(--muted)}
+.track{position:relative;height:8px;background:var(--faint);border-radius:5px}
+.track i{position:absolute;left:0;top:0;bottom:0;border-radius:5px}
+.green .track i{background:var(--go)} .yellow .track i{background:var(--warn)} .red .track i{background:var(--stop)}
+.track u{position:absolute;top:-3px;bottom:-3px;width:2px;margin-left:-1px;background:var(--ink);opacity:.5}
+.foot{font-size:12px;color:var(--muted);margin-top:12px}
+
+/* ---------- year ---------- */
+.year{display:grid;grid-template-columns:minmax(0,1fr) 260px;gap:18px;align-items:start}
+@media (max-width:900px){.year{grid-template-columns:1fr}}
+.panel{background:var(--paper);border-radius:16px;padding:18px 20px}
+.cal-wrap{overflow-x:auto}
+.cal{display:grid;grid-template-rows:auto repeat(7,1fr);grid-auto-flow:column;grid-auto-columns:minmax(10px,1fr);gap:3px;min-width:640px}
+.cal .m{font-family:var(--mono);font-size:10px;color:var(--muted);height:16px;white-space:nowrap}
+.cal .c{aspect-ratio:1;border-radius:3px;background:var(--faint)}
+.cal .c.f{background:transparent;outline:1px dashed var(--line);outline-offset:-1px}
+.cal .c.today{outline:2px solid var(--ink);outline-offset:-1px}
+.legend{display:flex;gap:16px;flex-wrap:wrap;margin-top:12px;font-size:12px;color:var(--muted)}
+.legend i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:6px;vertical-align:-1px}
+.mix{display:flex;flex-direction:column;align-items:center;gap:12px}
+.mix svg{width:190px;height:190px;display:block}
+.mix ul{list-style:none;margin:0;padding:0;width:100%;display:flex;flex-direction:column;gap:6px;font-size:13px}
+.mix li{display:flex;justify-content:space-between;gap:8px}
+.mix li span:first-child::before{content:"";display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:8px;background:var(--c);vertical-align:-1px}
+.mix li span:last-child{color:var(--muted)}
+.ystats{display:flex;gap:32px;flex-wrap:wrap;margin-top:16px;padding-top:14px;border-top:1px solid var(--line)}
+.ystats strong{font-family:var(--display);font-size:28px;font-weight:800;display:block;line-height:1}
+.ystats span{font-size:12px;color:var(--muted)}
+
+/* ---------- records ---------- */
+.seg{display:inline-flex;gap:2px;padding:3px;border-radius:999px;background:var(--paper)}
+.seg button{font:600 13px var(--body);color:var(--muted);background:none;border:0;border-radius:999px;padding:6px 14px;cursor:pointer}
+.seg button[aria-pressed="true"]{background:var(--ink);color:var(--paper)}
+.seg button:focus-visible,.chips button:focus-visible{outline:2px solid var(--ride);outline-offset:1px}
+.recs{background:var(--paper);border-radius:16px;padding:6px 20px;overflow-x:auto}
+.rgrid{display:grid;align-items:center;min-width:max-content}
+.rgrid > *{padding:14px 10px 14px 0}
+.rgrid .lab{font-family:var(--display);font-weight:800;font-size:18px;text-transform:uppercase}
+.rgrid .lab.y{color:var(--c)}
+.rgrid .sep{grid-column:1 / -1;height:1px;background:var(--line);padding:0}
+.rec{display:flex;flex-direction:column;gap:1px;min-width:0}
+.rec .k{font-family:var(--mono);font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.rec .v{font-family:var(--display);font-weight:800;font-size:28px;line-height:1.05;white-space:nowrap}
+.rec .d{font-size:11.5px;color:var(--muted)}
+.rec.gold .v{color:var(--gold-ink)}
+.rec.gold .k::after{content:" ★";color:var(--gold)}
+.rec.none .v{color:var(--line)}
+
+/* ---------- routes ---------- */
+.routes{display:grid;grid-template-columns:repeat(auto-fill,minmax(96px,1fr));gap:12px}
+.route{background:var(--paper);border-radius:12px;padding:10px 10px 8px;display:flex;flex-direction:column;align-items:center;gap:4px}
+.route svg{width:100%;aspect-ratio:1;display:block}
+.route span{font-family:var(--mono);font-size:10.5px;color:var(--muted)}
+footer{text-align:center;font-size:12.5px;color:var(--muted)}
+footer a{color:inherit}
+@media (prefers-reduced-motion: no-preference){
+  .route svg path{stroke-dasharray:var(--len);stroke-dashoffset:var(--len);animation:draw 1.4s ease-out forwards;animation-delay:var(--dl)}
+  @keyframes draw{to{stroke-dashoffset:0}}
+}
+</style>
+<!--body-->
+<div class="wrap" id="app"><div class="status">Loading your training data…</div></div>
+
+<script>
+"use strict";
+const $=s=>document.querySelector(s);
+const css=n=>getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const nf=new Intl.NumberFormat("en-CA");
+function decode(str){const pts=[];let i=0,lat=0,lng=0;while(i<str.length){for(const k of [0,1]){let b,sh=0,r=0;do{b=str.charCodeAt(i++)-63;r|=(b&31)<<sh;sh+=5}while(b>=32);const d=(r&1)?~(r>>1):(r>>1);if(k===0)lat+=d;else lng+=d}pts.push([lat/1e5,lng/1e5])}return pts}
+function hms(s){s=Math.round(s);const h=Math.floor(s/3600),m=Math.floor(s%3600/60),x=s%60;return h?`${h}:${String(m).padStart(2,"0")}:${String(x).padStart(2,"0")}`:`${m}:${String(x).padStart(2,"0")}`}
+const dfmt=(iso,o)=>new Date(iso.length===10?iso+"T12:00":iso).toLocaleDateString("en-CA",o);
+const fmtU=(v,u)=>u==="m"?`${nf.format(Math.round(v))} m`:u==="h"?`${(+v).toFixed(1)} h`:u==="km"?`${Math.round(v)} km`:(+v).toFixed(1).replace(/\.0$/,"");
+const LIGHT={green:"On track",yellow:"Needs work",red:"Not ready"};
+const SPORTS=[["run","Run"],["ride","Ride"],["swim","Swim"],["other","Other"]];
+let D=null, recSport="run";
+
+async function main(){
+  try{const r=await fetch("data/stats.json",{cache:"no-store"});if(!r.ok)throw 0;D=await r.json()}
+  catch(e){$("#app").innerHTML='<div class="status">Couldn\'t load your training data. Try reloading.</div>';return}
+  render();
+}
+
+function render(){
+  const d=D,t=d.totals,now=new Date(),L=d.lifetime||{};
+  const goals=(d.goals||[]).map(g=>({...g,days:Math.ceil((new Date(g.date+"T08:00")-now)/864e5)})).filter(g=>g.days>=0).sort((a,b)=>a.days-b.days);
+  const everest=t.elev_m/8849, marathons=t.km/42.195;
+  $("#app").innerHTML=`
+  ${d.sample?'<div class="sample">Sample data for testing. Your real history replaces it on the first nightly run.</div>':""}
+
+  <section>
+    <div class="mast">
+      <div><div class="kicker">${esc(d.location)} · ${t.year} season</div><h1>${esc(d.athlete)} in <em>motion</em></h1></div>
+      <div class="sync num">Updated ${new Date(d.generated).toLocaleString("en-CA",{month:"short",day:"numeric",hour:"numeric",minute:"2-digit"})}</div>
+    </div>
+    <div class="band"><i></i><i></i><i></i><i></i></div>
+    <div class="hero">
+      <div class="mapcard">
+        <div id="map" aria-label="Every run and ride drawn on a map. Drag to pan, scroll or pinch to zoom."></div>
+        <div class="chips" role="group" aria-label="Show routes"><button type="button" id="mf-all" data-f="all" aria-pressed="true">All</button><button type="button" id="mf-run" data-f="run" aria-pressed="false">Runs</button><button type="button" id="mf-ride" data-f="ride" aria-pressed="false">Rides</button></div>
+        <div class="map-tag"><span>Every route</span><b>${esc(d.heat.label||"Home turf")}</b></div>
+      </div>
+      <div class="bigs">
+        <div class="big" style="--c:var(--run)"><span class="kicker">Distance</span><span class="v num">${nf.format(t.km)}<span class="u">km</span></span><span class="fun">≈ <b>${Math.round(marathons)} marathons</b></span></div>
+        <div class="big" style="--c:var(--ride)"><span class="kicker">Time moving</span><span class="v num">${nf.format(t.hours)}<span class="u">h</span></span><span class="fun"><b>${(t.hours/Math.max(1,dayOfYear(now))*7).toFixed(1)} h</b> a week</span></div>
+        <div class="big" style="--c:var(--gold)"><span class="kicker">Climbing</span><span class="v num">${nf.format(t.elev_m)}<span class="u">m</span></span><span class="fun">≈ <b>${everest.toFixed(1)} Everests</b></span></div>
+        <div class="big" style="--c:var(--swim)"><span class="kicker">Activities</span><span class="v num">${nf.format(t.count)}</span><span class="fun"><b>${(d.year_days||[]).length}</b> active days</span></div>
+        ${L.km?`<div class="life num">Since ${esc(L.since)}: <b>${nf.format(L.km)} km</b>, ${(L.km/40075).toFixed(2)}× around the world · <b>${nf.format(L.hours)} h</b> · <b>${(L.elev_m/8849).toFixed(0)} Everests</b></div>`:""}
+      </div>
+    </div>
+  </section>
+
+  <section class="today" aria-label="Today">${dialCard(d.fitness)}${focusCard(d.focus,d.fitness)}<div class="tcard" id="wx">${d.weather?'<span class="kicker">Weather</span><span class="vitals">Loading…</span>':""}</div></section>
+
+  ${goals.length?`<section>
+    <div class="chapter"><span class="no">01</span><h2>Race bibs</h2></div>
+    <div class="bibs">${goals.map((g,i)=>bib(g,i)).join("")}</div>
+    <div class="foot">Bars compare your last 4 weeks with race-day targets. The tick is where you should be by now.</div>
+  </section>`:""}
+
+  <section>
+    <div class="chapter"><span class="no">02</span><h2>${t.year}, day by day</h2></div>
+    <div class="year">
+      <div class="panel"><div class="cal-wrap"><div class="cal" id="cal"></div></div>
+        <div class="legend">${SPORTS.map(([k,l])=>`<span><i style="background:var(--${k})"></i>${l}</span>`).join("")}<span>Darker = longer day</span></div>
+        <div class="ystats num" id="ystats"></div></div>
+      <div class="panel mix" id="mix"></div>
+    </div>
+  </section>
+
+  <section>
+    <div class="chapter"><span class="no">03</span><h2>Records</h2>
+      <div class="ctrls"><div class="seg" role="group" aria-label="Sport">${[["run","Running"],["ride","Biking"],["swim","Swimming"]].map(([k,l])=>`<button type="button" id="rs-${k}" data-rs="${k}" aria-pressed="${k===recSport}">${l}</button>`).join("")}</div></div>
+    </div>
+    <div class="recs" id="recs"></div>
+  </section>
+
+  ${(d.shapes||[]).length?`<section>
+    <div class="chapter"><span class="no">04</span><h2>Last ${d.shapes.length} adventures</h2></div>
+    <div class="routes">${d.shapes.map(shape).join("")}</div>
+  </section>`:""}
+
+  <footer>Built nightly from Coros via Intervals.icu · routes near home are hidden · <a href="index.html">Classic view</a> · <a href="wall.html">Wall view</a></footer>`;
+
+  document.querySelectorAll("[data-rs]").forEach(b=>b.onclick=()=>{recSport=b.dataset.rs;document.querySelectorAll("[data-rs]").forEach(o=>o.setAttribute("aria-pressed",String(o===b)));drawRecs()});
+  drawCalendar(); drawRecs(); measureRoutes();
+  if(d.weather) loadWeather(d.weather);
+  heatmap(d.heat);
+}
+function dayOfYear(n){return Math.floor((n-new Date(n.getFullYear(),0,0))/864e5)}
+
+/* ---------- form dial ---------- */
+const ZONES=[[-45,-30,"var(--stop)","High risk"],[-30,-10,"var(--go)","Optimal"],[-10,5,"var(--muted)","Neutral"],[5,25,"var(--ride)","Fresh"],[25,40,"var(--warn)","Transition"]];
+function dialCard(f){
+  if(!f) return "<div></div>";
+  const lo=-45,hi=40,cx=80,cy=78,r=62,ang=v=>Math.PI*(1-(Math.max(lo,Math.min(hi,v))-lo)/(hi-lo));
+  const pt=(a,rr)=>[cx+rr*Math.cos(a),cy-rr*Math.sin(a)];
+  const arcs=ZONES.map(([a,b,c])=>{const[x1,y1]=pt(ang(a),r),[x2,y2]=pt(ang(b),r);return `<path d="M${x1.toFixed(1)} ${y1.toFixed(1)} A${r} ${r} 0 0 1 ${x2.toFixed(1)} ${y2.toFixed(1)}" stroke="${c}" stroke-width="12" fill="none"/>`}).join("");
+  const[nx,ny]=pt(ang(f.form),r-18);
+  const z=ZONES.find(([a,b])=>f.form>=a&&f.form<b)||ZONES[2];
+  return `<div class="tcard"><span class="kicker">Form today</span><div class="dial">
+    <svg viewBox="0 0 160 92" role="img" aria-label="Form ${f.form}, ${esc(f.zone)}">${arcs}<line x1="${cx}" y1="${cy}" x2="${nx.toFixed(1)}" y2="${ny.toFixed(1)}" stroke="var(--ink)" stroke-width="3.5" stroke-linecap="round"/><circle cx="${cx}" cy="${cy}" r="6" fill="var(--ink)"/>
+    <text x="${cx}" y="${cy-22}" text-anchor="middle" font-family="Bricolage Grotesque,sans-serif" font-weight="800" font-size="22" fill="var(--ink)">${f.form>0?"+":""}${f.form}</text></svg>
+    <div><div class="zone" style="color:${z[2]}">${esc(f.zone)}</div><div class="vitals" style="margin-top:6px"><span>Fitness <b class="num">${f.ctl}</b></span><span>Fatigue <b class="num">${f.atl}</b></span></div></div></div></div>`;
+}
+function focusCard(fo,f){
+  const h=(f&&f.health)||{};
+  const v=[h.rhr&&`<span>Resting HR <b class="num">${Math.round(h.rhr.value)}</b></span>`,h.hrv&&`<span>HRV <b class="num">${Math.round(h.hrv.value)}</b></span>`,h.sleep_s&&`<span>Sleep <b class="num">${(h.sleep_s.value/3600).toFixed(1)} h</b></span>`].filter(Boolean).join("");
+  return `<div class="tcard focus">${fo?`<span class="kicker">${esc(fo.phase)} phase · ${esc(fo.race)} in ${fo.weeks} weeks</span><p>${esc(fo.tips[0]||fo.summary)}</p>`:""}${v?`<div class="vitals">${v}</div>`:""}</div>`;
+}
+
+/* ---------- race bibs ---------- */
+const BIBC=["var(--run)","var(--ride)","var(--swim)","var(--other)"];
+function bib(g,i){
+  const bars=(g.readiness||[]).map(b=>{const fill=Math.max(2,Math.min(100,b.current/b.target*100)),mark=Math.min(100,b.expected/b.target*100);
+    return `<div class="bar ${b.status}" title="${LIGHT[b.status]}: about ${fmtU(b.expected,b.unit)} expected by now"><div class="t"><b>${esc(b.label)}</b><span class="num">${fmtU(b.current,b.unit)} / ${fmtU(b.target,b.unit)}</span></div><div class="track"><i style="width:${fill.toFixed(1)}%"></i><u style="left:${mark.toFixed(1)}%"></u></div></div>`}).join("");
+  return `<article class="bib" style="--c:${BIBC[i%BIBC.length]}"><div class="strip"></div><i class="pin l"></i><i class="pin r"></i>
+    <div class="body">
+      <div class="ev"><div class="kicker">${esc(g.type)} · ${esc(g.where)}</div><h3>${esc(g.name)}</h3></div>
+      <div class="no"><div class="digits num">${g.days}<small>days to go</small></div>${g.light?`<div class="light ${g.light}" title="${Math.round(g.score*100)}% of where you should be by now"><div class="lamps" aria-hidden="true"><i></i><i></i><i></i></div><span>${LIGHT[g.light]}</span></div>`:""}</div>
+      <div class="kicker" style="text-align:center">${g.date_confirmed?dfmt(g.date,{weekday:"short",month:"short",day:"numeric",year:"numeric"}):"≈ "+dfmt(g.date,{month:"long",year:"numeric"})}</div>
+      ${bars?`<div class="bars">${bars}</div>`:""}
+    </div></article>`;
+}
+
+/* ---------- calendar + mix ---------- */
+function drawCalendar(){
+  const d=D, yr=d.totals.year, days=new Map((d.year_days||[]).map(e=>[e.d,e])), today=new Date(), todayIso=today.toLocaleDateString("en-CA");
+  const jan1=new Date(yr,0,1), start=new Date(jan1); start.setDate(1-((jan1.getDay()+6)%7)); // back to Monday
+  let html="", col=0, lastMonth=-1, cur=new Date(start);
+  const tot={run:0,ride:0,swim:0,other:0}; let best=null, streak=0, maxStreak=0;
+  while(cur.getFullYear()<=yr){
+    if(cur.getDay()===1||col===0){ // new week column: month label cell
+      const m=cur.getFullYear()===yr?cur.getMonth():(cur<jan1?0:11);
+      const lab=(cur.getFullYear()===yr&&m!==lastMonth&&cur.getDate()<=7)?cur.toLocaleDateString("en-CA",{month:"short"}):"";
+      if(lab) lastMonth=m;
+      html+=`<div class="m">${lab}</div>`; col++;
+    }
+    const iso=cur.toLocaleDateString("en-CA"), e=days.get(iso), inYr=cur.getFullYear()===yr, future=cur>today;
+    let style="", title=dfmt(iso,{weekday:"short",month:"short",day:"numeric"}), cls="c";
+    if(!inYr) style="visibility:hidden";
+    else if(future) cls+=" f";
+    else if(e){
+      const top=SPORTS.map(([k])=>k).sort((a,b)=>e[b]-e[a])[0], op=e.min<30?.35:e.min<60?.55:e.min<120?.8:1;
+      style=`background:var(--${top});opacity:${op}`;
+      title+=`: ${Math.floor(e.min/60)} h ${e.min%60} min`;
+      SPORTS.forEach(([k])=>tot[k]+=e[k]);
+      if(!best||e.min>best.min) best=e;
+      streak++; maxStreak=Math.max(maxStreak,streak);
+    } else if(inYr) streak=0;
+    if(iso===todayIso) cls+=" today";
+    html+=`<div class="${cls}" style="${style}" title="${esc(title)}"></div>`;
+    cur.setDate(cur.getDate()+1);
+  }
+  $("#cal").innerHTML=html;
+  const active=(d.year_days||[]).length, past=dayOfYear(today);
+  $("#ystats").innerHTML=`<div><strong>${active}</strong><span>active days of ${past}</span></div><div><strong>${Math.round(active/past*100)}%</strong><span>of days moving</span></div><div><strong>${maxStreak}</strong><span>longest streak, days</span></div>${best?`<div><strong>${(best.min/60).toFixed(1)} h</strong><span>biggest day, ${dfmt(best.d,{month:"short",day:"numeric"})}</span></div>`:""}`;
+  // sport mix donut
+  const sum=Object.values(tot).reduce((a,b)=>a+b,0)||1, R=80, C=2*Math.PI*R; let off=0;
+  const segs=SPORTS.filter(([k])=>tot[k]>0).map(([k])=>{const len=tot[k]/sum*C, s=`<circle r="${R}" cx="95" cy="95" fill="none" stroke="var(--${k})" stroke-width="26" stroke-dasharray="${len.toFixed(1)} ${(C-len).toFixed(1)}" stroke-dashoffset="${(-off).toFixed(1)}" transform="rotate(-90 95 95)"/>`; off+=len; return s}).join("");
+  $("#mix").innerHTML=`<span class="kicker">Sport mix, hours</span><svg viewBox="0 0 190 190" role="img" aria-label="Share of training time by sport">${segs}<text x="95" y="92" text-anchor="middle" font-family="Bricolage Grotesque,sans-serif" font-weight="800" font-size="34" fill="var(--ink)">${Math.round(sum/60)}</text><text x="95" y="114" text-anchor="middle" font-family="JetBrains Mono,monospace" font-size="11" fill="var(--muted)">HOURS</text></svg>
+    <ul>${SPORTS.filter(([k])=>tot[k]>0).map(([k,l])=>`<li style="--c:var(--${k})"><span>${l}</span><span class="num">${Math.round(tot[k]/60)} h · ${Math.round(tot[k]/sum*100)}%</span></li>`).join("")}</ul>`;
+}
+
+/* ---------- records ---------- */
+function drawRecs(){
+  const d=D, yr=String(d.totals.year), A=d.pbs||[], Y=d.pbs_year||[];
+  const tile=(k,v,sub,cls="",tip="")=>`<div class="rec ${cls}"${tip?` title="${esc(tip)}"`:""}><span class="k">${esc(k)}</span><span class="v num">${v}</span><span class="d">${sub||"&nbsp;"}</span></div>`;
+  const none=k=>tile(k,"–","","none");
+  const fmt=p=>p.unit==="time"?hms(p.value):(p.unit==="elev"||p.unit==="swim")?`${nf.format(Math.round(p.value))} m`:`${nf.format(Math.round(p.value/1000))} km`;
+  const col=(name,label)=>{const a=A.find(p=>p.label===name), y=Y.find(p=>p.label===name);
+    return {a:a&&a.value!=null?tile(label,fmt(a),dfmt(a.date,{month:"short",year:"numeric"}),"",a.name):none(label),
+            y:y&&y.value!=null?tile(label,fmt(y),dfmt(y.date,{month:"short",day:"numeric"}),y.is_pb?"gold":"",y.name+(y.is_pb?" · all-time best":"")):none(label)}};
+  let cols=[], color="var(--run)";
+  if(recSport==="run") cols=[["5K","5K"],["10K","10K"],["Half","Half"],["Marathon","Marathon"],["50K","50K"],["100K","100K"],["Longest run","Long run"],["Biggest climb","Climb"]].map(([n,l])=>col(n,l));
+  if(recSport==="ride"){ color="var(--ride)";
+    const p=d.power;
+    if(p) cols=Object.keys(p.all).map(k=>{const a=p.all[k],y=p.year&&p.year[k],g=y&&a&&y.watts===a.watts&&y.date===a.date;
+      return {a:a?tile(k,`${a.watts} W`,dfmt(a.date,{month:"short",year:"numeric"}),"",a.name):none(k),y:y?tile(k,`${y.watts} W`,dfmt(y.date,{month:"short",day:"numeric"}),g?"gold":"",y.name):none(k)}});
+    cols.push(col("Longest ride","Long ride"));
+    if(p) cols.push({a:tile("FTP est.",p.eftp?`${p.eftp} W`:"–","last 90 days","","95% of your best 20 minutes in the last 90 days"),y:"<div></div>"});
+    if(p&&p.wkg) cols.push({a:tile("W/kg",p.wkg,"at FTP"),y:"<div></div>"});
+    if(p&&p.zwift_cat) cols.push({a:tile("Zwift",`Cat ${esc(p.zwift_cat)}`,"racing"),y:"<div></div>"});
+  }
+  if(recSport==="swim"){ color="var(--swim)"; cols=[col("Longest swim","Long swim")]; }
+  const n=Math.max(cols.length,6);
+  $("#recs").innerHTML=`<div class="rgrid" style="grid-template-columns:96px repeat(${n},minmax(108px,1fr));--c:${color}">
+    <div class="lab">All time</div>${cols.map(c=>c.a).join("")}${"<div></div>".repeat(n-cols.length)}
+    <div class="sep"></div>
+    <div class="lab y">${yr}</div>${cols.map(c=>c.y).join("")}${"<div></div>".repeat(n-cols.length)}</div>`;
+}
+
+/* ---------- route gallery ---------- */
+function shape(s,i){
+  const segs=s.p.map(decode), pts=segs.flat();
+  if(pts.length<2) return "";
+  const lat0=pts[0][0]*Math.PI/180, X=p=>p[1]*Math.cos(lat0), Y=p=>-p[0];
+  const xs=pts.map(X), ys=pts.map(Y), minx=Math.min(...xs), maxx=Math.max(...xs), miny=Math.min(...ys), maxy=Math.max(...ys);
+  const sc=84/Math.max(maxx-minx,maxy-miny,1e-9), ox=(100-(maxx-minx)*sc)/2, oy=(100-(maxy-miny)*sc)/2;
+  const d=segs.map(seg=>seg.map((p,j)=>(j?"L":"M")+((X(p)-minx)*sc+ox).toFixed(1)+" "+((Y(p)-miny)*sc+oy).toFixed(1)).join("")).join("");
+  return `<div class="route" title="${esc(s.n)} · ${dfmt(s.d,{month:"short",day:"numeric",year:"numeric"})}"><svg viewBox="0 0 100 100" aria-hidden="true"><path d="${d}" fill="none" stroke="var(--${s.c})" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" style="--dl:${(i*0.04).toFixed(2)}s"/></svg><span class="num">${s.km} km</span></div>`;
+}
+function measureRoutes(){document.querySelectorAll(".route path").forEach(p=>{try{p.style.setProperty("--len",Math.ceil(p.getTotalLength()))}catch(e){p.style.setProperty("--len",0)}})}
+
+/* ---------- weather ---------- */
+const WMO={0:"Clear",1:"Mostly clear",2:"Partly cloudy",3:"Overcast",45:"Fog",48:"Fog",51:"Drizzle",53:"Drizzle",55:"Drizzle",61:"Light rain",63:"Rain",65:"Heavy rain",71:"Light snow",73:"Snow",75:"Heavy snow",80:"Showers",81:"Showers",82:"Heavy showers",85:"Snow showers",86:"Snow showers",95:"Thunderstorm",96:"Thunderstorm",99:"Thunderstorm"};
+async function loadWeather(w){
+  const box=$("#wx"); if(!box) return;
+  try{
+    const r=await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${w.lat}&longitude=${w.lng}&current=temperature_2m,weather_code&hourly=temperature_2m,precipitation_probability&daily=temperature_2m_max,temperature_2m_min,sunrise,sunset&timezone=auto&forecast_days=1`);
+    if(!r.ok) throw 0;
+    const x=await r.json(), c=x.current, h=x.hourly, dl=x.daily;
+    const nowH=new Date(c.time).getHours(), sr=new Date(dl.sunrise[0]).getHours(), ss=new Date(dl.sunset[0]).getHours()+1;
+    let best=null;
+    for(let i=Math.max(nowH,sr);i<Math.min(ss,23);i++){const rain=Math.max(h.precipitation_probability[i]??100,h.precipitation_probability[i+1]??100),tp=(h.temperature_2m[i]+h.temperature_2m[i+1])/2,sc=rain+Math.abs(tp-10)*1.5;if(!best||sc<best.sc)best={i,rain,sc}}
+    const hr=n=>new Date(2000,0,1,n).toLocaleTimeString("en-CA",{hour:"numeric"});
+    box.innerHTML=`<span class="kicker">${esc(w.place)} today</span><div class="wx"><span class="t num">${Math.round(c.temperature_2m)}°</span><div><div style="font-weight:600">${esc(WMO[c.weather_code]||"")}</div><div class="vitals" style="margin:0">H ${Math.round(dl.temperature_2m_max[0])}° · L ${Math.round(dl.temperature_2m_min[0])}°</div></div></div><div class="go">${best?`Get out <b>${hr(best.i)} to ${hr(best.i+2)}</b> · ${best.rain}% rain`:"Daylight is done for today"}</div>`;
+  }catch(e){box.innerHTML='<span class="kicker">Weather</span><span class="vitals">Forecast unavailable right now</span>'}
+}
+
+/* ---------- map ---------- */
+function heatmap(h){
+  const el=$("#map"); if(!window.L||!el) return;
+  const routes=h.routes.map(r=>({c:r.c,segs:r.p.map(decode)}));
+  const map=L.map(el,{zoomControl:false,scrollWheelZoom:false,minZoom:3,maxZoom:17});
+  L.control.zoom({position:"topright"}).addTo(map);
+  L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}",{maxNativeZoom:16,maxZoom:17,attribution:"Tiles &copy; Esri, HERE, Garmin, &copy; OpenStreetMap contributors"}).addTo(map);
+  const dLat=h.radius_km/110.57, dLng=h.radius_km/(111.32*Math.cos(h.center[0]*Math.PI/180));
+  map.fitBounds([[h.center[0]-dLat*.55,h.center[1]-dLng*.55],[h.center[0]+dLat*.55,h.center[1]+dLng*.55]]);
+  let sport="all";
+  const Heat=L.Layer.extend({
+    onAdd(m){this._c=L.DomUtil.create("canvas","heat-canvas");m.getPanes().overlayPane.appendChild(this._c);m.on("moveend zoomend resize viewreset",this._draw,this);m.on("zoomanim",()=>this._c.style.opacity=0);this._draw()},
+    _draw(){
+      const m=this._map,s=m.getSize(),dpr=devicePixelRatio||1,c=this._c,x=c.getContext("2d");
+      L.DomUtil.setPosition(c,m.containerPointToLayerPoint([0,0]));
+      c.width=s.x*dpr;c.height=s.y*dpr;c.style.width=s.x+"px";c.style.height=s.y+"px";c.style.opacity=1;
+      x.setTransform(dpr,0,0,dpr,0,0);x.clearRect(0,0,s.x,s.y);
+      const z=m.getZoom(),b=m.getBounds().pad(.2),shown=routes.filter(r=>sport==="all"||r.c===sport);
+      x.globalCompositeOperation="lighter";x.lineCap="round";x.lineJoin="round";x.lineWidth=z>=15?3:z>=13?2.2:1.6;
+      const col={run:"#ff6a45",ride:"#5ea3ff"}, a=Math.max(.12,Math.min(.6,7/Math.sqrt(shown.length+1)));
+      for(const r of shown){x.strokeStyle=col[r.c]||"#a796ff";x.globalAlpha=a;x.beginPath();
+        for(const seg of r.segs){if(!seg.some(p=>b.contains(p)))continue;seg.forEach((p,i)=>{const q=m.latLngToContainerPoint(p);i?x.lineTo(q.x,q.y):x.moveTo(q.x,q.y)})}
+        x.stroke()}
+      x.globalAlpha=1;x.globalCompositeOperation="source-over";
+    }
+  });
+  const heat=new Heat().addTo(map);
+  document.querySelectorAll("[data-f]").forEach(btn=>btn.onclick=()=>{sport=btn.dataset.f;document.querySelectorAll("[data-f]").forEach(o=>o.setAttribute("aria-pressed",String(o===btn)));heat._draw()});
+  map.on("focus click",()=>map.scrollWheelZoom.enable());
+  new ResizeObserver(()=>map.invalidateSize()).observe(el);
+}
+
+main();
+</script>
