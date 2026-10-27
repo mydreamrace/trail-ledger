@@ -52,6 +52,7 @@ Your site will be at `https://<your-username>.github.io/<repo-name>/`.
 
 - Runs every night around 3 AM Pacific. Hit **Run workflow** on the Actions tab (works on the GitHub phone app) to refresh right after a race.
 - Race goals, title and map settings live in `config.json`. Edit it on github.com and the site rebuilds on save. Set `date_confirmed` to `true` once a race date is announced.
+- Each race in `config.json` has a `readiness` list: up to three bars on its countdown card. `target` is where you want your last 4 weeks of training to be by race day. The marker on each bar shows where you'd typically be at this many weeks out (about half at 30+ weeks, rising to the full target 3 weeks out). Available metrics: `swims_per_week`, `rides_per_week`, `ride_hours_per_week`, `long_ride_km`, `run_km_per_week`, `run_hours_per_week`, `long_run_km`, `climb_per_week`.
 - `map.radius_km` sets how much area the heatmap covers around where most of your activities start. Set `map.center` to `[lat, lng]` to pin it somewhere specific.
 
 ## Running it locally

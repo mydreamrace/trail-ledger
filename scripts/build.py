@@ -108,6 +108,62 @@ def compute_fitness(acts, today):
             "ramp": round(ramp, 1) if ramp is not None else None, "trend": trend, "source": source}
 
 
+def training_metrics(last4):
+    """Averages over the last 4 weeks, in the units the readiness bars use."""
+    runs = [a for a in last4 if a["cat"] == "run"]
+    rides = [a for a in last4 if a["cat"] == "ride"]
+    on_foot = runs + [a for a in last4 if (a.get("type") or "") in ("Hike", "Walk")]
+    return {
+        "swims_per_week": sum(1 for a in last4 if a["cat"] == "swim") / 4,
+        "rides_per_week": len(rides) / 4,
+        "ride_hours_per_week": sum(a["moving_s"] for a in rides) / 3600 / 4,
+        "long_ride_km": max((a["dist_m"] for a in rides), default=0) / 1000,
+        "run_km_per_week": sum(a["dist_m"] for a in runs) / 1000 / 4,
+        "run_hours_per_week": sum(a["moving_s"] for a in runs) / 3600 / 4,
+        "long_run_km": max((a["dist_m"] for a in runs), default=0) / 1000,
+        "climb_per_week": sum(a["elev_m"] for a in on_foot) / 4,
+    }
+
+
+UNITS = {"swims_per_week": "", "rides_per_week": "", "ride_hours_per_week": "h", "long_ride_km": "km",
+         "run_km_per_week": "km", "run_hours_per_week": "h", "long_run_km": "km", "climb_per_week": "m"}
+
+
+def expected_share(weeks_out):
+    """How much of the race-day target you'd typically be at this many weeks out.
+    About half at 30+ weeks, rising steadily to full 3 weeks out, then easing for the taper."""
+    if weeks_out >= 30:
+        return 0.45
+    if weeks_out <= 0:
+        return 0.6
+    if weeks_out < 3:
+        return 0.75
+    return 0.45 + (30 - weeks_out) / 27 * 0.55
+
+
+def readiness_for_goals(goals, today, last4):
+    m = training_metrics(last4)
+    out = []
+    for g in goals:
+        g = dict(g)
+        weeks = (dt.date.fromisoformat(g["date"]) - today).days // 7
+        share = expected_share(weeks)
+        bars = []
+        for r in g.get("readiness", []):
+            key = r.get("metric")
+            if key not in m or not r.get("target"):
+                continue
+            cur, target = m[key], float(r["target"])
+            expected = target * share
+            ratio = cur / expected if expected else 0
+            status = "ahead" if ratio >= 1.1 else "on-track" if ratio >= 0.85 else "behind"
+            bars.append({"label": r.get("label", key), "unit": UNITS[key], "current": round(cur, 1),
+                         "target": target, "expected": round(expected, 1), "status": status})
+        g["readiness"] = bars
+        out.append(g)
+    return out
+
+
 def compute_focus(goals, today, fit, last4, load4):
     """Plain-language training focus for the next race, from weeks out plus recent training."""
     upcoming = sorted((g for g in goals if dt.date.fromisoformat(g["date"]) >= today), key=lambda g: g["date"])
@@ -290,6 +346,7 @@ def main():
         "count": len(last4),
     }
 
+    goals_out = readiness_for_goals(cfg.get("goals", []), today, last4)
     fitness = compute_fitness(acts, today)
     focus = compute_focus(cfg.get("goals", []), today, fitness, last4, recent_load)
 
@@ -336,7 +393,7 @@ def main():
         "location": cfg.get("location"),
         "sports_line": cfg.get("sports_line"),
         "totals": totals,
-        "goals": cfg.get("goals", []),
+        "goals": goals_out,
         "pbs": pbs,
         "pbs_year": pbs_year,
         "weekly": weekly,

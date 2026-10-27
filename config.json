@@ -6,7 +6,7 @@
   "timezone": "America/Vancouver",
   "weather": {
     "place": "Langley",
-    "lat": 49.10,
+    "lat": 49.1,
     "lng": -122.66
   },
   "map": {
@@ -20,21 +20,73 @@
       "where": "Penticton, BC",
       "type": "Olympic tri",
       "date": "2027-07-11",
-      "date_confirmed": false
+      "date_confirmed": false,
+      "readiness": [
+        {
+          "metric": "swims_per_week",
+          "label": "Swims a week",
+          "target": 3
+        },
+        {
+          "metric": "ride_hours_per_week",
+          "label": "Ride hours a week",
+          "target": 4
+        },
+        {
+          "metric": "run_km_per_week",
+          "label": "Run km a week",
+          "target": 30
+        }
+      ]
     },
     {
       "name": "Finlayson Arm 50 Mile",
       "where": "Goldstream, Victoria, BC",
       "type": "80 km trail",
       "date": "2027-09-25",
-      "date_confirmed": false
+      "date_confirmed": false,
+      "readiness": [
+        {
+          "metric": "long_run_km",
+          "label": "Longest run",
+          "target": 50
+        },
+        {
+          "metric": "climb_per_week",
+          "label": "Climbing a week",
+          "target": 2000
+        },
+        {
+          "metric": "run_hours_per_week",
+          "label": "Run hours a week",
+          "target": 8
+        }
+      ]
     },
     {
       "name": "Transylvania 50K",
       "where": "Bran, Romania",
       "type": "Mountain trail",
       "date": "2028-05-20",
-      "date_confirmed": false
+      "date_confirmed": false,
+      "readiness": [
+        {
+          "metric": "long_run_km",
+          "label": "Longest run",
+          "target": 35
+        },
+        {
+          "metric": "climb_per_week",
+          "label": "Climbing a week",
+          "target": 1500
+        },
+        {
+          "metric": "run_km_per_week",
+          "label": "Run km a week",
+          "target": 50
+        }
+      ]
     }
-  ]
+  ],
+  "readiness_note": "Targets are race-day goals for your last 4 weeks of training. Metrics: swims_per_week, rides_per_week, ride_hours_per_week, long_ride_km, run_km_per_week, run_hours_per_week, long_run_km, climb_per_week"
 }
