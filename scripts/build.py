@@ -94,26 +94,35 @@ def main():
         return {"label": label, "value": value, "unit": unit, "name": a["name"],
                 "date": a["start"][:10], "new": parse_start(a).year == year}
 
-    pbs = []
-    for label in EFFORTS:
-        best = None
-        for a in acts:
-            t = tracks.get(a["id"], {}).get("efforts", {}).get(label)
-            if t and (best is None or t < best[0]):
-                best = (t, a)
-        if best:
-            pbs.append(pb_entry(label, best[0], best[1], "time"))
+    def compute_pbs(pool):
+        """Same fixed list of slots for every pool, so the all-time and this-year rows line up.
+        A slot with nothing yet comes back with value None."""
+        out = []
+        for label in EFFORTS:
+            best = None
+            for a in pool:
+                t = tracks.get(a["id"], {}).get("efforts", {}).get(label)
+                if t and (best is None or t < best[0]):
+                    best = (t, a)
+            out.append(pb_entry(label, best[0], best[1], "time") if best else {"label": label, "value": None, "unit": "time"})
+        for label, unit, cats, key in (("Longest run", "m", ("run",), "dist_m"),
+                                       ("Biggest climb", "elev", None, "elev_m"),
+                                       ("Longest ride", "m", ("ride",), "dist_m")):
+            cands = [a for a in pool if (cats is None or a["cat"] in cats) and a[key]]
+            if cands:
+                a = max(cands, key=lambda x: x[key])
+                out.append(pb_entry(label, a[key], a, unit))
+            else:
+                out.append({"label": label, "value": None, "unit": unit})
+        return out
+
     runs = [a for a in acts if a["cat"] == "run"]
     rides = [a for a in acts if a["cat"] == "ride"]
-    if runs:
-        a = max(runs, key=lambda x: x["dist_m"])
-        pbs.append(pb_entry("Longest run", a["dist_m"], a, "m"))
-    if acts:
-        a = max(acts, key=lambda x: x["elev_m"])
-        pbs.append(pb_entry("Biggest climb", a["elev_m"], a, "elev"))
-    if rides:
-        a = max(rides, key=lambda x: x["dist_m"])
-        pbs.append(pb_entry("Longest ride", a["dist_m"], a, "m"))
+    pbs = compute_pbs(acts)
+    pbs_year = compute_pbs(this_year)
+    # flag this-year bests that are also the all-time best
+    for y, a in zip(pbs_year, pbs):
+        y["is_pb"] = y["value"] is not None and y["value"] == a["value"] and y.get("date") == a.get("date")
 
     # ---- weekly hours by sport, last 16 weeks (Mon-Sun)
     week0 = today - dt.timedelta(days=today.weekday()) - dt.timedelta(weeks=15)
@@ -214,6 +223,7 @@ def main():
         "totals": totals,
         "goals": cfg.get("goals", []),
         "pbs": pbs,
+        "pbs_year": pbs_year,
         "weekly": weekly,
         "yoy": yoy,
         "streaks": streaks,

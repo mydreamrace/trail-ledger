@@ -78,13 +78,19 @@ header h1 span{color:var(--accent)}
 .load{display:flex;gap:28px;flex-wrap:wrap;margin-top:16px;font-size:13px;color:var(--muted)}
 .load strong{color:var(--ink);font-weight:600}
 
-.pbs{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));border:1px solid var(--line);border-radius:8px;overflow:hidden;background:var(--surface)}
-.pb{padding:16px;border-right:1px solid var(--line);border-bottom:1px solid var(--line);display:flex;flex-direction:column;gap:4px;margin:0 -1px -1px 0;min-width:0}
-.pb .d{font-family:var(--mono);font-size:11.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
-.pb .t{font-family:var(--display);font-size:38px;font-weight:800;line-height:1}
-.pb .w{font-size:12.5px;color:var(--muted);overflow-wrap:anywhere}
-.pb.new .t{color:var(--pb-ink)}
-.badge{align-self:start;font-family:var(--mono);font-size:10.5px;text-transform:uppercase;letter-spacing:.08em;background:var(--pb);color:#2b1e00;padding:2px 7px;border-radius:3px}
+.pb-rows{display:flex;flex-direction:column;gap:14px}
+.pb-row{display:grid;grid-template-columns:96px minmax(0,1fr);align-items:stretch;gap:12px}
+.pb-row-label{font-family:var(--display);font-size:22px;font-weight:800;text-transform:uppercase;line-height:1;padding-top:14px}
+.pb-row-label.yr{color:var(--accent)}
+.pb-strip{display:grid;grid-auto-flow:column;grid-auto-columns:minmax(118px,1fr);overflow-x:auto;border:1px solid var(--line);border-radius:8px;background:var(--surface);scrollbar-width:thin}
+.pb{padding:12px 14px;border-left:1px solid var(--line);display:flex;flex-direction:column;gap:2px;min-width:0}
+.pb:first-child{border-left:0}
+.pb .d{font-family:var(--mono);font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);white-space:nowrap}
+.pb .t{font-family:var(--display);font-size:28px;font-weight:800;line-height:1.05;white-space:nowrap}
+.pb .w{font-size:11.5px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pb.empty .t{color:var(--line)}
+.pb.is-pb .t{color:var(--pb-ink)}
+@media (max-width:640px){.pb-row{grid-template-columns:1fr;gap:6px}.pb-row-label{padding-top:0;font-size:18px}}
 
 .trends{display:grid;grid-template-columns:3fr 2fr;gap:16px}
 @media (max-width:820px){.trends{grid-template-columns:1fr}}
@@ -211,10 +217,11 @@ function render(d){
   </section>`:""}
 
   <section>
-    <div class="sec-head"><h2>Personal Bests</h2><span class="eyebrow">Fastest efforts inside any run</span></div>
-    <div class="pbs">${d.pbs.map(p=>{
-      const v=p.unit==="time"?hms(p.value):p.unit==="elev"?`${nf.format(Math.round(p.value))} m`:`${nf.format(Math.round(p.value/1000))} km`;
-      return `<div class="pb${p.new?" new":""}">${p.new?`<span class="badge">New in ${t.year}</span>`:""}<span class="d">${esc(p.label)}</span><span class="t num">${v}</span><span class="w">${esc(p.name)} · ${dateFmt(p.date,{month:"short",year:"numeric"})}</span></div>`}).join("")}</div>
+    <div class="sec-head"><h2>Personal Bests</h2><span class="eyebrow">Gold = this year's best is also all-time</span></div>
+    <div class="pb-rows">
+      ${pbRow("All time", d.pbs, false)}
+      ${pbRow(String(t.year), d.pbs_year || [], true)}
+    </div>
   </section>
 
   <section>
@@ -247,6 +254,16 @@ function render(d){
   weeklyChart(d.weekly);
   yoyChart(d.yoy);
   heatmap(d.heat);
+}
+
+const PB_SHORT={"Marathon":"Marathon","Longest run":"Long run","Biggest climb":"Climb","Longest ride":"Long ride"};
+function pbRow(label, list, isYear){
+  return `<div class="pb-row"><div class="pb-row-label${isYear?" yr":""}">${esc(label)}</div><div class="pb-strip">${list.map(p=>{
+    const name=esc(PB_SHORT[p.label]||p.label);
+    if(p.value==null) return `<div class="pb empty"><span class="d">${name}</span><span class="t num">–</span><span class="w">&nbsp;</span></div>`;
+    const v=p.unit==="time"?hms(p.value):p.unit==="elev"?`${nf.format(Math.round(p.value))} m`:`${nf.format(Math.round(p.value/1000))} km`;
+    const tip=`${p.name} · ${dateFmt(p.date,{month:"short",day:"numeric",year:"numeric"})}${p.is_pb?" · all-time best":""}`;
+    return `<div class="pb${p.is_pb?" is-pb":""}" title="${esc(tip)}"><span class="d">${name}</span><span class="t num">${v}</span><span class="w">${dateFmt(p.date,isYear?{month:"short",day:"numeric"}:{month:"short",year:"numeric"})}</span></div>`}).join("")}</div></div>`;
 }
 
 function mini(route){
