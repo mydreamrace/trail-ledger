@@ -4,7 +4,7 @@ import math
 EARTH_R = 6371000.0
 
 # Distances (metres) we look for fastest efforts on, for runs.
-EFFORTS = {"5K": 5000, "10K": 10000, "Half": 21097.5, "Marathon": 42195, "50K": 50000}
+EFFORTS = {"5K": 5000, "10K": 10000, "Half": 21097.5, "Marathon": 42195, "50K": 50000, "100K": 100000}
 
 
 def category(sport_type):

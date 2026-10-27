@@ -266,10 +266,14 @@ def main():
         """Same fixed list of slots for every pool, so the all-time and this-year rows line up.
         A slot with nothing yet comes back with value None."""
         out = []
-        for label in EFFORTS:
+        for label, target in EFFORTS.items():
             best = None
             for a in pool:
                 t = tracks.get(a["id"], {}).get("efforts", {}).get(label)
+                # Activities cached before a distance was added have no effort for it.
+                # Fall back to the whole run's moving time, scaled to the distance.
+                if not t and a["cat"] == "run" and a["dist_m"] >= target * 0.985 and a["moving_s"]:
+                    t = a["moving_s"] * target / a["dist_m"]
                 if t and (best is None or t < best[0]):
                     best = (t, a)
             out.append(pb_entry(label, best[0], best[1], "time") if best else {"label": label, "value": None, "unit": "time"})
