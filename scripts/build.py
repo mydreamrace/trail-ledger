@@ -279,7 +279,8 @@ def main():
             out.append(pb_entry(label, best[0], best[1], "time") if best else {"label": label, "value": None, "unit": "time"})
         for label, unit, cats, key in (("Longest run", "m", ("run",), "dist_m"),
                                        ("Biggest climb", "elev", None, "elev_m"),
-                                       ("Longest ride", "m", ("ride",), "dist_m")):
+                                       ("Longest ride", "m", ("ride",), "dist_m"),
+                                       ("Longest swim", "swim", ("swim",), "dist_m")):
             cands = [a for a in pool if (cats is None or a["cat"] in cats) and a[key]]
             if cands:
                 a = max(cands, key=lambda x: x[key])
