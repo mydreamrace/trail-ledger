@@ -1,0 +1,344 @@
+<title>Patrick's Trail Ledger</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@600;800;900&family=Public+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: topo-map hero (heatmap) up top, then goals, PBs, trends, recent log. Single column that splits into grids on wide screens. */
+:root{
+  --bg:#eef1ec; --surface:#f8faf6; --ink:#17201b; --muted:#5d6a62; --line:#d3dbd3;
+  --accent:#0f8a8a; --accent-soft:#cfe9e6; --pb:#e0a100; --pb-ink:#7a5600;
+  --map-bg:#0e1714; --map-contour:rgba(150,190,170,.10); --map-ink:#e7efe9; --map-run:#46e0c8; --map-ride:#7eaaff;
+  --display:"Big Shoulders Display","Arial Narrow",Impact,sans-serif;
+  --body:"Public Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --mono:"IBM Plex Mono",ui-monospace,Menlo,Consolas,monospace;
+  color-scheme:light;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#101613; --surface:#18201c; --ink:#e6ede8; --muted:#94a39a; --line:#2a3530;
+  --accent:#3cc9bb; --accent-soft:#173b37; --pb:#f2be3a; --pb-ink:#f2be3a; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#101613; --surface:#18201c; --ink:#e6ede8; --muted:#94a39a; --line:#2a3530;
+  --accent:#3cc9bb; --accent-soft:#173b37; --pb:#f2be3a; --pb-ink:#f2be3a; color-scheme:dark}
+
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--body);font-size:15px;line-height:1.5;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:20px 48px}
+.wrap{max-width:1120px;margin:0 auto;display:flex;flex-direction:column;gap:40px}
+.num{font-variant-numeric:tabular-nums}
+h1,h2{font-family:var(--display);text-transform:uppercase;letter-spacing:.01em;margin:0;line-height:.95;text-wrap:balance}
+h2{font-size:clamp(28px,4vw,40px);font-weight:800}
+.eyebrow{font-family:var(--mono);font-size:11.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
+.sec-head{display:flex;justify-content:space-between;align-items:end;gap:12px;flex-wrap:wrap;margin-bottom:16px;border-bottom:2px solid var(--ink);padding-bottom:8px}
+
+.sample{display:flex;gap:10px;align-items:center;font-size:13px;color:var(--muted);border:1px dashed var(--line);padding:8px 12px;border-radius:6px}
+.sample b{color:var(--ink);font-weight:600}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--pb);flex:none}
+.status{font-size:14px;color:var(--muted);padding:40px 0;text-align:center}
+
+header{display:flex;justify-content:space-between;align-items:end;gap:16px;flex-wrap:wrap}
+header h1{font-size:clamp(46px,8vw,88px);font-weight:900}
+header h1 span{color:var(--accent)}
+.sync{text-align:right;font-family:var(--mono);font-size:12.5px;color:var(--muted)}
+
+.hero{position:relative;background:var(--map-bg);color:var(--map-ink);border-radius:10px;overflow:hidden;aspect-ratio:16/7;min-height:340px;max-width:100%}
+.hero canvas{position:absolute;inset:0;width:100%;height:100%;display:block;touch-action:none;cursor:grab}
+.hero canvas:active{cursor:grabbing}
+.hero-overlay{position:absolute;left:0;right:0;bottom:0;padding:18px 20px;display:flex;justify-content:space-between;align-items:end;gap:16px;flex-wrap:wrap;pointer-events:none;
+  background:linear-gradient(to top,rgba(14,23,20,.92),rgba(14,23,20,0))}
+.hero-label{font-family:var(--mono);font-size:11px;letter-spacing:.12em;text-transform:uppercase;opacity:.75}
+.hero-place{font-family:var(--display);font-size:clamp(22px,3vw,30px);font-weight:800;text-transform:uppercase}
+.totals{display:flex;gap:24px;flex-wrap:wrap}
+.totals div{display:flex;flex-direction:column}
+.totals strong{font-family:var(--display);font-size:clamp(30px,4vw,44px);font-weight:800;line-height:1}
+.totals span{font-family:var(--mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;opacity:.75}
+.map-ctl{position:absolute;top:14px;left:16px;right:16px;display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap}
+.chips{display:flex;gap:6px;flex-wrap:wrap}
+.map-ctl button{font-family:var(--mono);font-size:11.5px;letter-spacing:.06em;text-transform:uppercase;background:rgba(255,255,255,.08);color:var(--map-ink);
+  border:1px solid rgba(255,255,255,.18);border-radius:999px;padding:5px 11px;cursor:pointer}
+.map-ctl button[aria-pressed="true"]{background:var(--map-run);color:#062320;border-color:var(--map-run)}
+.map-ctl button:focus-visible{outline:2px solid var(--map-run);outline-offset:2px}
+
+.goals{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:16px}
+.goal{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:18px;display:flex;flex-direction:column;gap:12px}
+.goal-top{display:flex;justify-content:space-between;align-items:start;gap:8px}
+.goal h3{font-family:var(--display);font-size:26px;font-weight:800;text-transform:uppercase;margin:0;line-height:1}
+.goal .where{font-size:13px;color:var(--muted)}
+.tag{font-family:var(--mono);font-size:11px;text-transform:uppercase;letter-spacing:.06em;padding:3px 8px;border-radius:999px;background:var(--accent-soft);color:var(--accent);white-space:nowrap}
+.countdown{display:flex;align-items:baseline;gap:8px}
+.countdown strong{font-family:var(--display);font-size:56px;font-weight:900;line-height:.9;color:var(--accent)}
+.countdown span{font-size:13px;color:var(--muted)}
+.bar{height:6px;background:var(--line);border-radius:3px;overflow:hidden}
+.bar i{display:block;height:100%;background:var(--accent)}
+.load{display:flex;gap:28px;flex-wrap:wrap;margin-top:16px;font-size:13px;color:var(--muted)}
+.load strong{color:var(--ink);font-weight:600}
+
+.pbs{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));border:1px solid var(--line);border-radius:8px;overflow:hidden;background:var(--surface)}
+.pb{padding:16px;border-right:1px solid var(--line);border-bottom:1px solid var(--line);display:flex;flex-direction:column;gap:4px;margin:0 -1px -1px 0;min-width:0}
+.pb .d{font-family:var(--mono);font-size:11.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.pb .t{font-family:var(--display);font-size:38px;font-weight:800;line-height:1}
+.pb .w{font-size:12.5px;color:var(--muted);overflow-wrap:anywhere}
+.pb.new .t{color:var(--pb-ink)}
+.badge{align-self:start;font-family:var(--mono);font-size:10.5px;text-transform:uppercase;letter-spacing:.08em;background:var(--pb);color:#2b1e00;padding:2px 7px;border-radius:3px}
+
+.trends{display:grid;grid-template-columns:3fr 2fr;gap:16px}
+@media (max-width:820px){.trends{grid-template-columns:1fr}}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:16px;min-width:0}
+.panel h3{margin:0 0 4px;font-size:14px;font-weight:600}
+.panel .sub{font-size:12.5px;color:var(--muted);margin-bottom:10px}
+.chart{overflow-x:auto}
+.chart svg{display:block;width:100%;height:auto;min-width:300px}
+.legend{display:flex;gap:14px;font-size:12px;color:var(--muted);margin-top:6px;flex-wrap:wrap}
+.legend i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:5px;vertical-align:-1px}
+.streaks{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:14px;padding-top:14px;border-top:1px solid var(--line)}
+.streaks strong{font-family:var(--display);font-size:30px;font-weight:800;display:block;line-height:1}
+.streaks span{font-size:12px;color:var(--muted)}
+
+.log{background:var(--surface);border:1px solid var(--line);border-radius:8px;overflow:hidden}
+.row{display:grid;grid-template-columns:64px minmax(0,1.6fr) repeat(4,minmax(0,1fr));gap:14px;align-items:center;padding:12px 16px;border-bottom:1px solid var(--line)}
+.row:last-child{border-bottom:0}
+.row svg{width:64px;height:40px;display:block}
+.row .name{font-weight:600}
+.row .when{font-size:12.5px;color:var(--muted)}
+.row .k{font-family:var(--mono);font-size:10.5px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);display:block}
+.row .v{font-weight:600}
+.sport{font-family:var(--mono);font-size:10.5px;text-transform:uppercase;letter-spacing:.06em;color:var(--accent)}
+@media (max-width:640px){
+  .row{grid-template-columns:56px minmax(0,1fr) minmax(0,1fr);row-gap:8px}
+  .row .title{grid-column:2 / -1}
+  .row svg{grid-row:span 2;width:56px}
+  .row .c-pace,.row .c-elev{display:none}
+}
+footer{font-size:12.5px;color:var(--muted);text-align:center}
+</style>
+<!--body-->
+<div class="wrap" id="app">
+  <div class="status" id="status">Loading your training data…</div>
+</div>
+
+<script>
+"use strict";
+const $ = s => document.querySelector(s);
+const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const nf = new Intl.NumberFormat("en-CA");
+const MONO = "IBM Plex Mono,monospace";
+
+function decode(str){ // Google encoded polyline
+  const pts=[];let i=0,lat=0,lng=0;
+  while(i<str.length){
+    for(const k of [0,1]){let b,shift=0,res=0;
+      do{b=str.charCodeAt(i++)-63;res|=(b&31)<<shift;shift+=5}while(b>=32);
+      const d=(res&1)?~(res>>1):(res>>1); if(k===0)lat+=d; else lng+=d}
+    pts.push([lat/1e5,lng/1e5]);
+  }
+  return pts;
+}
+function hms(s){s=Math.round(s);const h=Math.floor(s/3600),m=Math.floor(s%3600/60),x=s%60;
+  return h?`${h}:${String(m).padStart(2,"0")}:${String(x).padStart(2,"0")}`:`${m}:${String(x).padStart(2,"0")}`}
+function pace(a){
+  if(!a.dist_m||!a.moving_s)return "n/a";
+  if(a.cat==="run"||a.cat==="other"){const s=a.moving_s/(a.dist_m/1000);return `${Math.floor(s/60)}:${String(Math.round(s%60)).padStart(2,"0")} /km`}
+  if(a.cat==="ride")return `${(a.dist_m/a.moving_s*3.6).toFixed(1)} km/h`;
+  const s=a.moving_s/(a.dist_m/100);return `${Math.floor(s/60)}:${String(Math.round(s%60)).padStart(2,"0")} /100m`;
+}
+const km = m => m>=100000?`${nf.format(Math.round(m/1000))} km`:`${(m/1000).toFixed(1)} km`;
+const dateFmt = (iso,opt) => new Date(iso.length===10?iso+"T12:00":iso).toLocaleDateString("en-CA",opt);
+const SPORT = {Run:"Run",TrailRun:"Trail run",Ride:"Ride",VirtualRide:"Virtual ride",GravelRide:"Gravel ride",MountainBikeRide:"MTB",Swim:"Swim",OpenWaterSwim:"Open water",Hike:"Hike",Walk:"Walk"};
+
+async function main(){
+  let d;
+  try{
+    const r = await fetch("data/stats.json",{cache:"no-store"});
+    if(!r.ok) throw new Error(r.status);
+    d = await r.json();
+  }catch(e){
+    $("#status").textContent = "Couldn't load data/stats.json. Run the build, then reload.";
+    return;
+  }
+  render(d);
+}
+
+function render(d){
+  const t=d.totals, today=new Date();
+  const goals=(d.goals||[]).map(g=>({...g,days:Math.ceil((new Date(g.date+"T08:00")-today)/864e5)})).filter(g=>g.days>=0).sort((a,b)=>a.days-b.days);
+  $("#app").innerHTML = `
+  ${d.sample?`<div class="sample"><span class="dot"></span><span><b>Sample data.</b> These numbers are generated for testing. Your Intervals.icu history replaces them on the first nightly run.</span></div>`:""}
+  <header>
+    <div><div class="eyebrow">${esc(d.location)} · ${esc(d.sports_line)}</div>
+    <h1>${esc(d.athlete)}'s <span>${esc(d.title)}</span></h1></div>
+    <div class="sync">Updated from Coros<br><span class="num">${new Date(d.generated).toLocaleString("en-CA",{month:"short",day:"numeric",year:"numeric",hour:"numeric",minute:"2-digit"})}</span><br><span class="num">${nf.format(d.count_all)} activities</span></div>
+  </header>
+
+  <section class="hero" aria-label="Route heatmap">
+    <canvas id="map" aria-label="Heatmap of every run and ride route. Drag to pan, scroll or pinch to zoom."></canvas>
+    <div class="map-ctl">
+      <div class="chips" role="group" aria-label="Sport">
+        <button type="button" id="f-all" data-f="all" aria-pressed="true">All</button>
+        <button type="button" id="f-run" data-f="run" aria-pressed="false">Run</button>
+        <button type="button" id="f-ride" data-f="ride" aria-pressed="false">Ride</button>
+      </div>
+      <div class="chips" role="group" aria-label="Years">
+        <button type="button" id="y-all" data-y="all" aria-pressed="true">All years</button>
+        <button type="button" id="y-now" data-y="${t.year}" aria-pressed="false">${t.year}</button>
+      </div>
+    </div>
+    <div class="hero-overlay">
+      <div><div class="hero-label">Every route, all years</div><div class="hero-place">${esc(d.heat.label||"Home turf")}</div></div>
+      <div class="totals num">
+        <div><strong>${nf.format(t.km)}</strong><span>km in ${t.year}</span></div>
+        <div><strong>${nf.format(t.elev_m)}</strong><span>m climbed</span></div>
+        <div><strong>${nf.format(t.hours)}</strong><span>hours</span></div>
+        <div><strong>${nf.format(t.count)}</strong><span>activities</span></div>
+      </div>
+    </div>
+  </section>
+
+  ${goals.length?`<section>
+    <div class="sec-head"><h2>Next Start Lines</h2><span class="eyebrow">Race countdown</span></div>
+    <div class="goals">${goals.map(g=>{const pct=Math.max(3,Math.min(100,100-g.days/365*100));return `
+      <article class="goal">
+        <div class="goal-top"><div><h3>${esc(g.name)}</h3><div class="where">${esc(g.where)}</div></div><span class="tag">${esc(g.type)}</span></div>
+        <div class="countdown num"><strong>${g.days}</strong><span>days out<br>${g.date_confirmed?dateFmt(g.date,{month:"short",day:"numeric",year:"numeric"}):"≈ "+dateFmt(g.date,{month:"short",year:"numeric"})+" · date TBC"}</span></div>
+        <div class="bar" title="Share of the final year before race day"><i style="width:${pct}%"></i></div>
+      </article>`}).join("")}</div>
+    <div class="load num"><span>Last 4 weeks:</span><span><strong>${d.last4.hours} h</strong> training</span><span><strong>${d.last4.long_run_km} km</strong> longest run</span><span><strong>${nf.format(d.last4.elev_m)} m</strong> climbed</span></div>
+  </section>`:""}
+
+  <section>
+    <div class="sec-head"><h2>Personal Bests</h2><span class="eyebrow">Fastest efforts inside any run</span></div>
+    <div class="pbs">${d.pbs.map(p=>{
+      const v=p.unit==="time"?hms(p.value):p.unit==="elev"?`${nf.format(Math.round(p.value))} m`:`${nf.format(Math.round(p.value/1000))} km`;
+      return `<div class="pb${p.new?" new":""}">${p.new?`<span class="badge">New in ${t.year}</span>`:""}<span class="d">${esc(p.label)}</span><span class="t num">${v}</span><span class="w">${esc(p.name)} · ${dateFmt(p.date,{month:"short",year:"numeric"})}</span></div>`}).join("")}</div>
+  </section>
+
+  <section>
+    <div class="sec-head"><h2>Training Load</h2><span class="eyebrow">Last 16 weeks</span></div>
+    <div class="trends">
+      <div class="panel"><h3>Weekly volume</h3><div class="sub">Hours per week by sport</div><div class="chart" id="weekly"></div>
+        <div class="legend"><span><i style="background:var(--accent)"></i>Run</span><span><i style="background:var(--muted);opacity:.55"></i>Ride</span><span><i style="background:var(--pb)"></i>Swim</span><span><i style="background:var(--line)"></i>Other</span></div></div>
+      <div class="panel"><h3>Running distance, year over year</h3><div class="sub">Cumulative km, January to December</div><div class="chart" id="yoy"></div>
+        <div class="legend"><span><i style="background:var(--accent)"></i>${d.yoy.this_year}</span><span><i style="background:var(--muted)"></i>${d.yoy.last_year}</span></div>
+        <div class="streaks num">
+          <div><strong>${d.streaks.run_streak}</strong><span>day run streak</span></div>
+          <div><strong>${d.streaks.big_weeks}</strong><span>of 16 weeks over 8 h</span></div>
+          <div><strong>${d.streaks.vs_last_pct==null?"n/a":(d.streaks.vs_last_pct>0?"+":"")+d.streaks.vs_last_pct+"%"}</strong><span>run km vs ${d.yoy.last_year} to date</span></div>
+        </div></div>
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-head"><h2>Recent Activity</h2><span class="eyebrow">Latest ${d.recent.length}</span></div>
+    <div class="log">${d.recent.map(a=>`<div class="row">${mini(a.route)}
+      <div class="title"><span class="sport">${esc(SPORT[a.type]||a.type)}</span><div class="name">${esc(a.name)}</div><div class="when">${new Date(a.start).toLocaleString("en-CA",{weekday:"short",month:"short",day:"numeric",hour:"numeric",minute:"2-digit"})}</div></div>
+      <div><span class="k">Distance</span><span class="v num">${km(a.dist_m)}</span></div>
+      <div><span class="k">Time</span><span class="v num">${hms(a.moving_s)}</span></div>
+      <div class="c-pace"><span class="k">${a.cat==="ride"?"Speed":"Pace"}</span><span class="v num">${pace(a)}</span></div>
+      <div class="c-elev"><span class="k">Climb</span><span class="v num">${a.elev_m?nf.format(Math.round(a.elev_m))+" m":"n/a"}</span></div></div>`).join("")}</div>
+  </section>
+
+  <footer>Built nightly from Coros via Intervals.icu · routes near home are hidden</footer>`;
+
+  weeklyChart(d.weekly);
+  yoyChart(d.yoy);
+  heatmap(d.heat);
+}
+
+function mini(route){
+  const segs=(route||[]).map(decode);
+  const pts=segs.flat();
+  if(pts.length<2) return `<svg viewBox="0 0 64 40" aria-hidden="true"><rect width="64" height="40" rx="4" fill="var(--accent-soft)"/><line x1="16" y1="20" x2="48" y2="20" stroke="var(--accent)" stroke-width="1.8" stroke-dasharray="3 4" stroke-linecap="round"/></svg>`;
+  const lat0=pts[0][0]*Math.PI/180, xs=pts.map(p=>p[1]*Math.cos(lat0)), ys=pts.map(p=>-p[0]);
+  const minx=Math.min(...xs),maxx=Math.max(...xs),miny=Math.min(...ys),maxy=Math.max(...ys);
+  const s=Math.min(52/((maxx-minx)||1e-9),30/((maxy-miny)||1e-9)), ox=(64-(maxx-minx)*s)/2, oy=(40-(maxy-miny)*s)/2;
+  const path=segs.map(seg=>seg.map((p,i)=>(i?"L":"M")+((p[1]*Math.cos(lat0)-minx)*s+ox).toFixed(1)+" "+((-p[0]-miny)*s+oy).toFixed(1)).join("")).join("");
+  return `<svg viewBox="0 0 64 40" aria-hidden="true"><rect width="64" height="40" rx="4" fill="var(--accent-soft)"/><path d="${path}" fill="none" stroke="var(--accent)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+}
+
+function niceMax(v,step){return Math.max(step,Math.ceil(v/step)*step)}
+function weeklyChart(weeks){
+  const W=600,H=220,L=36,B=26,T=10,R=8,n=weeks.length;
+  const tot=weeks.map(w=>w.run+w.ride+w.swim+w.other), max=niceMax(Math.max(...tot,1),4), step=max/4;
+  const bw=(W-L-R)/n, y=v=>T+(H-T-B)*(1-v/max);
+  let s=`<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Weekly training hours for the last 16 weeks">`;
+  for(let v=0;v<=max+1e-9;v+=step) s+=`<line x1="${L}" x2="${W-R}" y1="${y(v)}" y2="${y(v)}" stroke="var(--line)"/><text x="${L-6}" y="${y(v)+4}" text-anchor="end" font-size="11" fill="var(--muted)" font-family="${MONO}">${Math.round(v)}h</text>`;
+  weeks.forEach((w,i)=>{const x=L+i*bw+bw*.15, bwi=bw*.7; let acc=0;
+    [["run","var(--accent)",1],["ride","var(--muted)",.55],["swim","var(--pb)",1],["other","var(--line)",1]].forEach(([k,c,o])=>{const v=w[k]; if(!v)return;
+      s+=`<rect x="${x.toFixed(1)}" y="${y(acc+v).toFixed(1)}" width="${bwi.toFixed(1)}" height="${(y(acc)-y(acc+v)).toFixed(1)}" fill="${c}" opacity="${o}"><title>${dateFmt(w.start,{month:"short",day:"numeric"})}: ${k} ${v.toFixed(1)} h</title></rect>`; acc+=v});
+    if(i%4===0||i===n-1) s+=`<text x="${(x+bwi/2).toFixed(1)}" y="${H-8}" text-anchor="middle" font-size="11" fill="var(--muted)" font-family="${MONO}">${dateFmt(w.start,{month:"short",day:"numeric"})}</text>`;
+  });
+  $("#weekly").innerHTML=s+"</svg>";
+}
+
+function yoyChart(d){
+  const W=400,H=220,L=44,B=26,T=14,R=14;
+  const max=niceMax(Math.max(...d.this,...d.last,1),500), step=max/4;
+  const x=i=>L+(W-L-R)*i/11, y=v=>T+(H-T-B)*(1-v/max);
+  const path=a=>a.map((v,i)=>(i?"L":"M")+x(i).toFixed(1)+" "+y(v).toFixed(1)).join(" ");
+  let s=`<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Cumulative running kilometres, ${d.this_year} against ${d.last_year}">`;
+  for(let v=0;v<=max+1e-9;v+=step) s+=`<line x1="${L}" x2="${W-R}" y1="${y(v)}" y2="${y(v)}" stroke="var(--line)"/><text x="${L-6}" y="${y(v)+4}" text-anchor="end" font-size="11" fill="var(--muted)" font-family="${MONO}">${nf.format(Math.round(v))}</text>`;
+  "JFMAMJJASOND".split("").forEach((m,i)=>s+=`<text x="${x(i)}" y="${H-8}" text-anchor="middle" font-size="11" fill="var(--muted)" font-family="${MONO}">${m}</text>`);
+  if(d.last.length) s+=`<path d="${path(d.last)}" fill="none" stroke="var(--muted)" stroke-width="2" stroke-dasharray="5 4" opacity=".7"/>`;
+  if(d.this.length){const n=d.this.length-1,last=d.this[n];
+    s+=`<path d="${path(d.this)} L${x(n)} ${y(0)} L${x(0)} ${y(0)} Z" fill="var(--accent)" opacity=".12"/><path d="${path(d.this)}" fill="none" stroke="var(--accent)" stroke-width="2.5"/>`;
+    s+=`<circle cx="${x(n)}" cy="${y(last)}" r="4.5" fill="var(--accent)"/><text x="${x(n)+(n>7?-8:8)}" y="${y(last)-10}" text-anchor="${n>7?"end":"start"}" font-size="12" font-weight="600" fill="var(--ink)" font-family="${MONO}">${nf.format(last)} km</text>`}
+  $("#yoy").innerHTML=s+"</svg>";
+}
+
+function heatmap(h){
+  const cv=$("#map"), cx=cv.getContext("2d");
+  const lat0=h.center[0]*Math.PI/180;
+  const routes=h.routes.map(r=>({c:r.c,y:r.y,segs:r.p.map(p=>decode(p).map(([la,ln])=>[(ln-h.center[1])*111.32*Math.cos(lat0),-(la-h.center[0])*110.57]))}));
+  let sport="all", year="all", zoom=1, panX=0, panY=0;
+  function draw(){
+    const r=cv.getBoundingClientRect(), dpr=devicePixelRatio||1;
+    if(!r.width) return;
+    cv.width=r.width*dpr; cv.height=r.height*dpr; cx.setTransform(dpr,0,0,dpr,0,0);
+    const W=r.width,H=r.height, base=Math.min(W,H)/2/h.radius_km, s=base*zoom, ox=W/2+panX, oy=H/2+panY;
+    cx.fillStyle=css("--map-bg"); cx.fillRect(0,0,W,H);
+    cx.strokeStyle=css("--map-contour"); cx.lineWidth=1;
+    for(let c=0;c<22;c++){cx.beginPath();
+      for(let t=0;t<=1.0001;t+=.01){const a=t*Math.PI*2,rad=(.08+c*.045)*Math.max(W,H)*(1+.15*Math.sin(a*3+c*.4));
+        const px=W*.66+Math.cos(a)*rad,py=H*.32+Math.sin(a)*rad*.6; t===0?cx.moveTo(px,py):cx.lineTo(px,py)} cx.stroke()}
+    cx.globalCompositeOperation="lighter"; cx.lineCap="round"; cx.lineJoin="round";
+    const run=css("--map-run"), ride=css("--map-ride");
+    const n=routes.filter(r=>(sport==="all"||r.c===sport)&&(year==="all"||String(r.y)===year)).length;
+    const alpha=Math.max(.08,Math.min(.5,6/Math.sqrt(n+1)));
+    for(const rt of routes){
+      if(sport!=="all"&&rt.c!==sport) continue;
+      if(year!=="all"&&String(rt.y)!==year) continue;
+      cx.strokeStyle=rt.c==="ride"?ride:run; cx.globalAlpha=alpha; cx.lineWidth=rt.c==="ride"?1.1:1.5;
+      cx.beginPath();
+      for(const seg of rt.segs) seg.forEach(([x,y],i)=>i?cx.lineTo(ox+x*s,oy+y*s):cx.moveTo(ox+x*s,oy+y*s));
+      cx.stroke();
+    }
+    cx.globalAlpha=1; cx.globalCompositeOperation="source-over";
+  }
+  const press=(sel,attr,set)=>document.querySelectorAll(sel).forEach(b=>b.addEventListener("click",()=>{
+    set(b.dataset[attr]); document.querySelectorAll(sel).forEach(o=>o.setAttribute("aria-pressed",String(o===b))); draw()}));
+  press("[data-f]","f",v=>sport=v);
+  press("[data-y]","y",v=>year=v);
+  // pan and zoom
+  const pts=new Map(); let lastDist=0;
+  cv.addEventListener("pointerdown",e=>{cv.setPointerCapture(e.pointerId);pts.set(e.pointerId,[e.clientX,e.clientY])});
+  cv.addEventListener("pointermove",e=>{
+    if(!pts.has(e.pointerId)) return;
+    const prev=pts.get(e.pointerId); pts.set(e.pointerId,[e.clientX,e.clientY]);
+    if(pts.size===1){panX+=e.clientX-prev[0]; panY+=e.clientY-prev[1]; draw()}
+    else if(pts.size===2){const [a,b]=[...pts.values()],dist=Math.hypot(a[0]-b[0],a[1]-b[1]);
+      if(lastDist){zoomAt(dist/lastDist,(a[0]+b[0])/2,(a[1]+b[1])/2)} lastDist=dist}
+  });
+  const up=e=>{pts.delete(e.pointerId); if(pts.size<2) lastDist=0};
+  cv.addEventListener("pointerup",up); cv.addEventListener("pointercancel",up);
+  function zoomAt(f,clientX,clientY){
+    const r=cv.getBoundingClientRect(), nz=Math.max(.5,Math.min(40,zoom*f)); f=nz/zoom;
+    const mx=clientX-r.left-r.width/2, my=clientY-r.top-r.height/2;
+    panX=mx-(mx-panX)*f; panY=my-(my-panY)*f; zoom=nz; draw();
+  }
+  cv.addEventListener("wheel",e=>{e.preventDefault(); zoomAt(Math.exp(-e.deltaY*.0015),e.clientX,e.clientY)},{passive:false});
+  cv.addEventListener("dblclick",()=>{zoom=1;panX=0;panY=0;draw()});
+  new ResizeObserver(draw).observe(cv);
+  matchMedia("(prefers-color-scheme: dark)").addEventListener("change",draw);
+}
+
+main();
+</script>

@@ -1,0 +1,6 @@
+# activity data and the built site never go in the repo
+data/
+public/
+privacy.local.json
+__pycache__/
+.DS_Store

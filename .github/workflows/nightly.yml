@@ -1,0 +1,69 @@
+name: Nightly update
+
+on:
+  schedule:
+    - cron: "17 10 * * *" # 3:17 AM Pacific in summer, 2:17 AM in winter
+  workflow_dispatch: # "Run workflow" button for an instant refresh after a race
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120 # the very first run downloads your full history
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      # Activity data lives in the Actions cache, never in the repo,
+      # so raw GPS tracks are not published anywhere.
+      - name: Restore activity cache
+        uses: actions/cache/restore@v4
+        with:
+          path: data/cache
+          key: activity-cache-${{ github.run_id }}
+          restore-keys: activity-cache-
+
+      - name: Fetch new activities from Intervals.icu
+        env:
+          INTERVALS_API_KEY: ${{ secrets.INTERVALS_API_KEY }}
+          INTERVALS_ATHLETE_ID: ${{ secrets.INTERVALS_ATHLETE_ID }}
+        run: python scripts/fetch.py
+
+      - name: Save activity cache
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: data/cache
+          key: activity-cache-${{ github.run_id }}
+
+      - name: Build site
+        env:
+          PRIVACY_ZONES: ${{ secrets.PRIVACY_ZONES }}
+        run: python scripts/build.py
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: public
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

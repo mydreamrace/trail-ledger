@@ -1,0 +1,35 @@
+{
+  "athlete": "Patrick",
+  "title": "Trail Ledger",
+  "location": "Langley, BC",
+  "sports_line": "Run · Ride · Swim",
+  "timezone": "America/Vancouver",
+  "map": {
+    "center": null,
+    "radius_km": 55,
+    "label": "Fraser Valley & North Shore"
+  },
+  "goals": [
+    {
+      "name": "Peach Classic",
+      "where": "Penticton, BC",
+      "type": "Olympic tri",
+      "date": "2027-07-11",
+      "date_confirmed": false
+    },
+    {
+      "name": "Finlayson Arm 50 Mile",
+      "where": "Goldstream, Victoria, BC",
+      "type": "80 km trail",
+      "date": "2027-09-25",
+      "date_confirmed": false
+    },
+    {
+      "name": "Transylvania 50K",
+      "where": "Bran, Romania",
+      "type": "Mountain trail",
+      "date": "2028-05-20",
+      "date_confirmed": false
+    }
+  ]
+}
