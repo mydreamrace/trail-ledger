@@ -300,6 +300,7 @@ function render(d){
     <div class="pb-rows">
       ${pbRow("All time", d.pbs, false)}
       ${pbRow(String(t.year), d.pbs_year || [], true)}
+      ${powerRow(d.power, t.year)}
     </div>
   </section>
 
@@ -441,6 +442,18 @@ function readyBars(bars){
 }
 
 const PB_SHORT={"Marathon":"Marathon","Longest run":"Long run","Biggest climb":"Climb","Longest ride":"Long ride","Longest swim":"Long swim"};
+function powerRow(p, yr){
+  if(!p) return "";
+  const tiles=Object.keys(p.all).map(k=>{const a=p.all[k], y=p.year&&p.year[k];
+    if(!a) return `<div class="pb empty"><span class="d">${esc(k)}</span><span class="t num">–</span><span class="w">&nbsp;</span></div>`;
+    const gold=y&&y.watts===a.watts&&y.date===a.date;
+    return `<div class="pb${gold?" is-pb":""}" title="${esc(a.name)} · ${dateFmt(a.date,{month:"short",day:"numeric",year:"numeric"})}"><span class="d">${esc(k)}</span><span class="t num">${a.watts} W</span><span class="w">${y?`${yr}: ${y.watts} W`:dateFmt(a.date,{month:"short",year:"numeric"})}</span></div>`;
+  });
+  tiles.push(`<div class="pb" title="95% of your best 20 minutes in the last 90 days"><span class="d">FTP est.</span><span class="t num">${p.eftp?p.eftp+" W":"–"}</span><span class="w">last 90 days</span></div>`);
+  tiles.push(`<div class="pb"><span class="d">W/kg</span><span class="t num">${p.wkg??"–"}</span><span class="w">${p.wkg?"at FTP":"add weight"}</span></div>`);
+  if(p.zwift_cat) tiles.push(`<div class="pb"><span class="d">Zwift</span><span class="t">Cat ${esc(p.zwift_cat)}</span><span class="w">racing</span></div>`);
+  return `<div class="pb-row"><div class="pb-row-label">Power</div><div class="pb-strip">${tiles.join("")}</div></div>`;
+}
 function pbRow(label, list, isYear){
   return `<div class="pb-row"><div class="pb-row-label${isYear?" yr":""}">${esc(label)}</div><div class="pb-strip">${list.map(p=>{
     const name=esc(PB_SHORT[p.label]||p.label);

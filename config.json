@@ -3,6 +3,10 @@
   "title": "Trail Ledger",
   "location": "Langley, BC",
   "sports_line": "Run · Ride · Swim",
+  "weight_kg": null,
+  "zwift": {
+    "category": "B"
+  },
   "timezone": "America/Vancouver",
   "weather": {
     "place": "Langley",

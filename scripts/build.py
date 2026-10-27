@@ -15,7 +15,7 @@ import sys
 from zoneinfo import ZoneInfo
 
 sys.path.insert(0, str(pathlib.Path(__file__).parent))
-from lib import EFFORTS, encode_polyline, haversine, simplify, trim_privacy  # noqa: E402
+from lib import EFFORTS, POWER_DURS, encode_polyline, haversine, simplify, trim_privacy  # noqa: E402
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 CACHE = pathlib.Path(os.environ.get("CACHE_DIR", ROOT / "data/cache"))
@@ -54,6 +54,42 @@ def load_privacy():
 
 def parse_start(a):
     return dt.datetime.fromisoformat(a["start"].replace("Z", ""))
+
+
+def compute_power(acts, tracks, today, cfg):
+    """Best power for each duration (all time and this year), estimated FTP and W/kg."""
+    rides = [a for a in acts if a["cat"] == "ride" and tracks.get(a["id"], {}).get("power")]
+    if not rides:
+        return None
+
+    def best(pool):
+        out = {}
+        for label in POWER_DURS:
+            top = None
+            for a in pool:
+                w = tracks[a["id"]]["power"].get(label)
+                if w and (top is None or w > top[0]):
+                    top = (w, a)
+            out[label] = {"watts": top[0], "name": top[1]["name"], "date": top[1]["start"][:10]} if top else None
+        return out
+
+    year = [a for a in rides if a["start"][:4] == str(today.year)]
+    cutoff = (today - dt.timedelta(days=90)).isoformat()
+    recent20 = [tracks[a["id"]]["power"].get("20 min") for a in rides if a["start"][:10] >= cutoff]
+    recent20 = [w for w in recent20 if w]
+    eftp = round(max(recent20) * 0.95) if recent20 else None
+
+    weight = cfg.get("weight_kg")
+    wpath = CACHE / "wellness.json"
+    if wpath.exists():
+        ws = [r["weight"] for r in sorted(json.loads(wpath.read_text()), key=lambda r: r.get("date") or "")
+              if r.get("weight")]
+        if ws:
+            weight = ws[-1]
+    zw = cfg.get("zwift") or {}
+    return {"all": best(rides), "year": best(year), "eftp": eftp,
+            "wkg": round(eftp / weight, 2) if eftp and weight else None,
+            "zwift_cat": zw.get("category")}
 
 
 def drop_duplicates(acts):
@@ -348,6 +384,7 @@ def main():
     rides = [a for a in acts if a["cat"] == "ride"]
     pbs = compute_pbs(acts)
     pbs_year = compute_pbs(this_year)
+    power = compute_power(acts, tracks, today, cfg)
     # flag this-year bests that are also the all-time best
     for y, a in zip(pbs_year, pbs):
         y["is_pb"] = y["value"] is not None and y["value"] == a["value"] and y.get("date") == a.get("date")
@@ -456,6 +493,7 @@ def main():
         "goals": goals_out,
         "pbs": pbs,
         "pbs_year": pbs_year,
+        "power": power,
         "weekly": weekly,
         "yoy": yoy,
         "streaks": streaks,

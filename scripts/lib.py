@@ -4,6 +4,9 @@ import math
 EARTH_R = 6371000.0
 
 # Distances (metres) we look for fastest efforts on, for runs.
+# Durations (seconds) we look for best average power on, for rides.
+POWER_DURS = {"5s": 5, "1 min": 60, "5 min": 300, "20 min": 1200}
+
 EFFORTS = {"5K": 5000, "10K": 10000, "Half": 21097.5, "Marathon": 42195, "50K": 50000, "100K": 100000}
 
 
@@ -68,6 +71,37 @@ def best_efforts(time, dist, targets=EFFORTS):
 
 def _to_xy(p, lat0):
     return (math.radians(p[1]) * EARTH_R * math.cos(math.radians(lat0)), math.radians(p[0]) * EARTH_R)
+
+
+def best_power(time, watts, durs=POWER_DURS):
+    """Best average power (W) for each duration. Resamples to one value per second,
+    carrying each reading forward; gaps over 5 s (paused) count as zero."""
+    pts = [(t, w) for t, w in zip(time or [], watts or []) if t is not None]
+    if len(pts) < 2:
+        return {}
+    t0, t_end = pts[0][0], pts[-1][0]
+    n = int(t_end - t0) + 1
+    if n < 5 or n > 60 * 60 * 30:
+        return {}
+    sec = [0.0] * n
+    for (t, w), (t_next, _) in zip(pts, pts[1:] + [(t_end + 1, None)]):
+        a = int(t - t0)
+        b = min(n, int(t_next - t0), a + 5)  # hold a reading at most 5 s
+        for i in range(a, b):
+            sec[i] = float(w or 0)
+    out = {}
+    for label, d in durs.items():
+        if d > n:
+            continue
+        run = sum(sec[:d])
+        best = run
+        for i in range(d, n):
+            run += sec[i] - sec[i - d]
+            if run > best:
+                best = run
+        if best > 0:
+            out[label] = round(best / d)
+    return out
 
 
 def simplify(points, eps_m=8.0):
@@ -143,7 +177,7 @@ def parse_streams(raw):
             else:
                 pts = [tuple(p) for p in data if isinstance(p, (list, tuple)) and len(p) == 2]
             out["latlng"] = [(a, b) for a, b in pts if a is not None and b is not None and not (a == 0 and b == 0)]
-        elif typ in ("time", "distance"):
+        elif typ in ("time", "distance", "watts"):
             out[typ] = data
     return out
 
@@ -167,11 +201,14 @@ def process_activity(summary, streams):
         "hr": summary.get("average_heartrate"),
         "load": summary.get("icu_training_load"),
         "race": bool(summary.get("race")),
+        "watts": summary.get("icu_average_watts") or summary.get("average_watts"),
     }
     track = {"id": rec["id"], "efforts": {}, "route": []}
     if streams:
         if cat == "run":
             track["efforts"] = best_efforts(streams.get("time"), streams.get("distance"))
+        if cat == "ride":
+            track["power"] = best_power(streams.get("time"), streams.get("watts"))
         pts = streams.get("latlng") or []
         if len(pts) > 1:
             track["route"] = [[round(a, 6), round(b, 6)] for a, b in simplify(pts, 8.0)]

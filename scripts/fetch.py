@@ -20,7 +20,7 @@ import urllib.parse
 import urllib.request
 
 sys.path.insert(0, str(pathlib.Path(__file__).parent))
-from lib import parse_streams, process_activity  # noqa: E402
+from lib import best_power, parse_streams, process_activity  # noqa: E402
 
 BASE = "https://intervals.icu/api/v1"
 CACHE = pathlib.Path(os.environ.get("CACHE_DIR", "data/cache"))
@@ -103,7 +103,7 @@ def main():
                 updated += 1
             continue
         try:
-            raw = api_get(f"/activity/{aid}/streams.json", {"types": "time,distance,latlng"})
+            raw = api_get(f"/activity/{aid}/streams.json", {"types": "time,distance,latlng,watts"})
         except RuntimeError:
             failed += 1  # not saved, so the next run tries this one again
             continue
@@ -115,6 +115,29 @@ def main():
             print(f"  {new} activities downloaded...")
             index_path.write_text(json.dumps(index, separators=(",", ":")))
         time.sleep(0.15)
+
+    # One-time top-up: rides cached before power was tracked get their power bests now.
+    powered = 0
+    for aid, rec in index.items():
+        if rec.get("cat") != "ride":
+            continue
+        tp = CACHE / "tracks" / f"{aid}.json"
+        if not tp.exists():
+            continue
+        track = json.loads(tp.read_text())
+        if "power" in track:
+            continue
+        try:
+            raw = api_get(f"/activity/{aid}/streams.json", {"types": "time,watts"})
+        except RuntimeError:
+            continue
+        st = parse_streams(raw)
+        track["power"] = best_power(st.get("time"), st.get("watts"))  # {} if no power meter
+        tp.write_text(json.dumps(track, separators=(",", ":")))
+        powered += 1
+        time.sleep(0.15)
+    if powered:
+        print(f"Added power data to {powered} older rides.")
 
     index_path.write_text(json.dumps(index, separators=(",", ":")))
     print(f"Done: {new} new, {updated} updated, {len(index)} total in cache.")
