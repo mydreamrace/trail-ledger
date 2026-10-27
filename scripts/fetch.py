@@ -34,7 +34,11 @@ def api_get(path, params=None):
     url = BASE + path + ("?" + urllib.parse.urlencode(params) if params else "")
     token = base64.b64encode(f"API_KEY:{key}".encode()).decode()
     for attempt in range(6):
-        req = urllib.request.Request(url, headers={"Authorization": "Basic " + token, "Accept": "application/json"})
+        req = urllib.request.Request(url, headers={
+            "Authorization": "Basic " + token,
+            "Accept": "application/json",
+            "User-Agent": "trail-ledger/1.0 (personal stats site; github.com/mydreamrace/trail-ledger)",
+        })
         try:
             with urllib.request.urlopen(req, timeout=90) as r:
                 return json.load(r)
