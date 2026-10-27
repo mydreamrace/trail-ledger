@@ -316,10 +316,10 @@ function heatmap(h){
   const routes=h.routes.map(r=>({c:r.c,y:r.y,segs:r.p.map(decode)}));
   const map=L.map(el,{zoomControl:false,attributionControl:true,preferCanvas:true,worldCopyJump:false,minZoom:3,maxZoom:17});
   L.control.zoom({position:"topright"}).addTo(map);
-  // Dark basemap so the routes glow; free CARTO tiles over OpenStreetMap data
-  L.tileLayer("https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png",{
-    subdomains:"abcd",maxZoom:19,
-    attribution:'&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions">CARTO</a>'
+  // Dark basemap so the routes glow. Esri's dark gray canvas is free for personal, non-commercial use without a key.
+  L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}",{
+    maxNativeZoom:16,maxZoom:17,
+    attribution:'Tiles &copy; Esri &mdash; Esri, HERE, Garmin, &copy; OpenStreetMap contributors'
   }).addTo(map);
   const dLat=h.radius_km/110.57, dLng=h.radius_km/(111.32*Math.cos(h.center[0]*Math.PI/180));
   map.fitBounds([[h.center[0]-dLat*.6,h.center[1]-dLng*.6],[h.center[0]+dLat*.6,h.center[1]+dLng*.6]]);
