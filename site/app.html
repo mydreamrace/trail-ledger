@@ -95,8 +95,7 @@ header h1 span{color:var(--accent)}
 .pb.is-pb .t{color:var(--pb-ink)}
 @media (max-width:640px){.pb-row{grid-template-columns:1fr;gap:6px}.pb-row-label{padding-top:0;font-size:18px}}
 
-.trends{display:grid;grid-template-columns:1.45fr 1.15fr 1fr;gap:16px;align-items:start}
-@media (max-width:1060px){.trends{grid-template-columns:1fr 1fr}.trends .ready{grid-column:1 / -1}}
+.trends{display:grid;grid-template-columns:1fr 1fr;gap:16px}
 @media (max-width:820px){.trends{grid-template-columns:1fr}}
 
 /* readiness panel: fitness, focus, weather */
@@ -122,7 +121,17 @@ header h1 span{color:var(--accent)}
 .wx .temp{font-family:var(--display);font-size:44px;font-weight:800;line-height:.9;grid-row:span 2}
 .wx .cond{font-weight:600;font-size:14px}
 .wx .meta{font-size:12.5px;color:var(--muted)}
-.wx-window{font-size:13px;background:var(--accent-soft);color:var(--ink);padding:8px 10px;border-radius:6px}
+.weather{display:flex;flex-direction:column;gap:14px}
+.weather #wx{display:flex;flex-direction:column;gap:14px;flex:1}
+.hours{display:grid;grid-template-columns:repeat(8,minmax(0,1fr));border:1px solid var(--line);border-radius:6px;overflow:hidden}
+.hours div{display:flex;flex-direction:column;align-items:center;gap:2px;padding:8px 2px;border-left:1px solid var(--line);font-size:12px}
+.hours div:first-child{border-left:0}
+.hours .h{font-family:var(--mono);font-size:10.5px;color:var(--muted);text-transform:uppercase}
+.hours .t{font-weight:600;font-size:14px}
+.hours .r{font-size:11px;color:var(--muted)}
+.hours .wet .r{color:var(--accent);font-weight:600}
+.hours .best{background:var(--accent-soft)}
+.wx-window{margin-top:auto;font-size:13px;background:var(--accent-soft);color:var(--ink);padding:8px 10px;border-radius:6px}
 .wx-window b{color:var(--accent)}
 .panel{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:16px;min-width:0}
 .panel h3{margin:0 0 4px;font-size:14px;font-weight:600}
@@ -267,6 +276,7 @@ function render(d){
           <div><strong>${d.streaks.vs_last_pct==null?"n/a":(d.streaks.vs_last_pct>0?"+":"")+d.streaks.vs_last_pct+"%"}</strong><span>run km vs ${d.yoy.last_year} to date</span></div>
         </div></div>
       ${readyPanel(d)}
+      ${d.weather?`<div class="panel weather"><h3>Today in ${esc(d.weather.place)}</h3><div class="sub">Live forecast, updates every time you open the page</div><div id="wx"><p>Loading forecast…</p></div></div>`:""}
     </div>
   </section>
 
@@ -314,7 +324,6 @@ function readyPanel(d){
       ${fo.then.length?`<p>Then: ${fo.then.map(x=>`${esc(x.name)} in ${x.weeks} weeks`).join(", ")}</p>`:""}
     </div>`;
   }
-  if(d.weather) html+=`<div class="blk"><h3>Today in ${esc(d.weather.place)}</h3><div id="wx"><p>Loading forecast…</p></div></div>`;
   return html+`</div>`;
 }
 
@@ -326,11 +335,12 @@ async function loadWeather(w){
   const url=`https://api.open-meteo.com/v1/forecast?latitude=${w.lat}&longitude=${w.lng}`+
     `&current=temperature_2m,apparent_temperature,weather_code,wind_speed_10m`+
     `&hourly=temperature_2m,precipitation_probability,weather_code&daily=temperature_2m_max,temperature_2m_min,precipitation_probability_max,sunrise,sunset`+
-    `&timezone=auto&forecast_days=1`;
+    `&timezone=auto&forecast_days=2`;
   try{
     const r=await fetch(url); if(!r.ok) throw new Error(r.status);
     const x=await r.json(), c=x.current, dly=x.daily, h=x.hourly;
     // best 2-hour window from now until an hour after sunset: lowest rain chance, then closest to 10°C
+    const nowIdx=Math.max(0,h.time.findIndex(t=>t.slice(0,13)===c.time.slice(0,13)));
     const nowH=new Date(c.time).getHours(), sunset=new Date(dly.sunset[0]).getHours()+1, sunrise=new Date(dly.sunrise[0]).getHours();
     let best=null;
     for(let i=Math.max(nowH,sunrise);i<Math.min(sunset,23);i++){
@@ -341,11 +351,17 @@ async function loadWeather(w){
       if(!best||score<best.score) best={i,rain,temp,score};
     }
     const hr=n=>new Date(2000,0,1,n).toLocaleTimeString("en-CA",{hour:"numeric"});
+    const strip=[...Array(8)].map((_,k)=>nowIdx+k).filter(i=>i<h.time.length).map(i=>{
+      const rain=h.precipitation_probability[i]??0, inBest=best&&(i===best.i||i===best.i+1);
+      return `<div class="${rain>=50?"wet ":""}${inBest?"best":""}"><span class="h">${k(i)}</span><span class="t">${Math.round(h.temperature_2m[i])}°</span><span class="r">${rain}%</span></div>`;
+    }).join("");
+    function k(i){return i===nowIdx?"Now":new Date(h.time[i]).toLocaleTimeString("en-CA",{hour:"numeric"}).replace(/\s?[ap]\.?m\.?/i,m=>m.trim()[0].toLowerCase())}
     box.innerHTML=`<div class="wx num">
         <div class="temp">${Math.round(c.temperature_2m)}°</div>
         <div class="cond">${esc(WMO[c.weather_code]||"")}</div>
         <div class="meta">Feels ${Math.round(c.apparent_temperature)}° · H ${Math.round(dly.temperature_2m_max[0])}° L ${Math.round(dly.temperature_2m_min[0])}° · Wind ${Math.round(c.wind_speed_10m)} km/h · Rain ${dly.precipitation_probability_max[0]??0}%</div>
       </div>
+      <div class="hours num" aria-label="Next 8 hours: temperature and chance of rain">${strip}</div>
       ${best?`<div class="wx-window">Best window: <b>${hr(best.i)} to ${hr(best.i+2)}</b> · ${Math.round(best.temp)}° · ${best.rain}% rain</div>`:`<p>Daylight is done for today.</p>`}`;
   }catch(e){
     box.innerHTML=`<p>Forecast unavailable right now.</p>`;
