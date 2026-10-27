@@ -1,7 +1,7 @@
 """Pull new activities from Intervals.icu into data/cache/.
 
-First run downloads your whole history (can take a while). Later runs only ask for
-the last few days, so the nightly job finishes in seconds.
+First run downloads your whole history (can take a while). Later runs re-list
+everything but only download GPS for new activities, so they finish in seconds.
 
 Needs two environment variables (GitHub secrets in the workflow):
   INTERVALS_API_KEY     from intervals.icu > Settings > Developer
@@ -24,7 +24,6 @@ from lib import parse_streams, process_activity  # noqa: E402
 BASE = "https://intervals.icu/api/v1"
 CACHE = pathlib.Path(os.environ.get("CACHE_DIR", "data/cache"))
 FIRST_DATE = os.environ.get("HISTORY_START", "2010-01-01")
-OVERLAP_DAYS = 7  # re-check the last week in case you renamed or edited an activity
 
 
 def api_get(path, params=None):
@@ -69,11 +68,11 @@ def main():
     index_path = CACHE / "activities.json"
     index = json.loads(index_path.read_text()) if index_path.exists() else {}
 
-    if index:
-        latest = max(a["start"][:10] for a in index.values() if a.get("start"))
-        oldest = (dt.date.fromisoformat(latest) - dt.timedelta(days=OVERLAP_DAYS)).isoformat()
-    else:
-        oldest = FIRST_DATE
+    # Always list the full history. Listing is cheap (one request per year), and it catches
+    # activities Intervals.icu backfills into older dates, e.g. while a Coros import is still running.
+    # GPS tracks are only downloaded for activities we haven't seen before.
+    oldest = FIRST_DATE
+    if not index:
         print("No cache found, downloading full history from", oldest)
     newest = (dt.date.today() + dt.timedelta(days=1)).isoformat()
 
