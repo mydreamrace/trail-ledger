@@ -28,6 +28,19 @@
   --run:#ff6a45; --ride:#5ea3ff; --swim:#2ad3c2; --other:#a796ff; --gold:#ffc83d; --gold-ink:#ffc83d;
   --go:#3fd07a; --warn:#f5c33b; --stop:#ff6b5e; color-scheme:dark}
 
+/* Skins: each forces its own palette regardless of the system theme. Asphalt is the default. */
+:root[data-skin="asphalt"]{--bg:#151413;--paper:#211f1d;--ink:#f3f0eb;--muted:#a7a29a;--line:#36332f;--faint:#2b2926;--map-bg:#161514;
+  --run:#ff6a45;--ride:#5ea3ff;--swim:#2ad3c2;--other:#b39cff;--gold:#ffc83d;--gold-ink:#ffc83d;--go:#3fd07a;--warn:#f5c33b;--stop:#ff6b5e;--lamp:#0c0b0a;--lamp-off:#34312d;color-scheme:dark}
+:root[data-skin="pine"]{--bg:#0e1611;--paper:#17221b;--ink:#eef4ef;--muted:#9fb3a5;--line:#2a3b30;--faint:#1f2d24;--map-bg:#0f1712;
+  --run:#ff7a4f;--ride:#62a8ff;--swim:#4fe0c8;--other:#b8a4ff;--gold:#ffcf4a;--gold-ink:#ffcf4a;--go:#4ade80;--warn:#f5c33b;--stop:#ff6b5e;--lamp:#09100c;--lamp-off:#2c3a31;color-scheme:dark}
+:root[data-skin="paper"]{--bg:#f1f1ee;--paper:#ffffff;--ink:#141414;--muted:#5e5d59;--line:#e0dfda;--faint:#ebeae6;--map-bg:#191918;
+  --run:#e8461c;--ride:#2369d8;--swim:#00988a;--other:#7a63e8;--gold:#e0a000;--gold-ink:#8a6200;--go:#18924c;--warn:#d99700;--stop:#d3341f;--lamp:#191918;--lamp-off:#3a3936;color-scheme:light}
+:root[data-skin="night"]{--bg:#0d1020;--paper:#161a2d;--ink:#eef0f8;--muted:#9aa1ba;--line:#272c45;--faint:#1d2238;--map-bg:#11152a;
+  --run:#ff6a45;--ride:#5ea3ff;--swim:#2ad3c2;--other:#a796ff;--gold:#ffc83d;--gold-ink:#ffc83d;--go:#3fd07a;--warn:#f5c33b;--stop:#ff6b5e;--lamp:#141829;--lamp-off:#2c3150;color-scheme:dark}
+.skins{display:flex;gap:6px;justify-content:flex-end;margin-top:6px}
+.skins button{width:22px;height:22px;border-radius:50%;border:2px solid var(--line);cursor:pointer;padding:0}
+.skins button[aria-pressed="true"]{border-color:var(--ink)}
+.skins button:focus-visible{outline:2px solid var(--ride);outline-offset:2px}
 *{box-sizing:border-box}
 body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--body);font-size:15px;line-height:1.5;
   padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:24px 64px}
@@ -57,16 +70,16 @@ h1,h2,h3{font-family:var(--display);margin:0;line-height:.95;text-wrap:balance;l
 .mapcard{position:relative;border-radius:16px;overflow:hidden;background:var(--map-bg);min-height:380px}
 #map{position:absolute;inset:0;background:var(--map-bg)}
 .leaflet-container{background:var(--map-bg);font-family:var(--body)}
-.leaflet-control-attribution{background:rgba(13,16,32,.7)!important;color:#8f97b5!important;font-size:10px!important}
+.leaflet-control-attribution{background:rgba(0,0,0,.6)!important;color:#8f97b5!important;font-size:10px!important}
 .leaflet-control-attribution a{color:#c3c9e0!important}
-.leaflet-control-zoom a{background:rgba(13,16,32,.85)!important;color:#eef0f8!important;border-color:rgba(255,255,255,.15)!important}
+.leaflet-control-zoom a{background:rgba(0,0,0,.7)!important;color:#eef0f8!important;border-color:rgba(255,255,255,.15)!important}
 .heat-canvas{position:absolute;top:0;left:0;pointer-events:none}
 .map-tag{position:absolute;z-index:800;left:16px;bottom:14px;color:#eef0f8;pointer-events:none}
 .map-tag b{display:block;font-family:var(--display);font-size:22px;font-weight:800}
 .map-tag span{font-family:var(--mono);font-size:10.5px;letter-spacing:.12em;text-transform:uppercase;opacity:.7}
 .chips{position:absolute;z-index:800;top:14px;left:14px;display:flex;gap:6px}
 .chips button{font:600 12px var(--body);color:#eef0f8;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.18);border-radius:999px;padding:4px 11px;cursor:pointer}
-.chips button[aria-pressed="true"]{background:#eef0f8;color:#11152a}
+.chips button[aria-pressed="true"]{background:#f3f0eb;color:#151413}
 .bigs{display:grid;grid-template-columns:1fr 1fr;gap:12px}
 .big{background:var(--paper);border-radius:16px;padding:16px 18px 18px;display:flex;flex-direction:column;gap:2px;position:relative;overflow:hidden}
 .big::before{content:"";position:absolute;left:0;top:0;bottom:0;width:5px;background:var(--c,var(--run))}
@@ -108,8 +121,8 @@ h1,h2,h3{font-family:var(--display);margin:0;line-height:.95;text-wrap:balance;l
 .bib .digits{font-family:var(--display);font-weight:800;font-size:84px;line-height:.85;letter-spacing:-.04em}
 .bib .digits small{display:block;font-family:var(--mono);font-size:10.5px;font-weight:400;letter-spacing:.14em;color:var(--muted);text-align:center;margin-top:8px}
 .light{display:flex;flex-direction:column;align-items:center;gap:6px}
-.lamps{display:flex;flex-direction:column;gap:5px;padding:7px 6px;border-radius:999px;background:#141829}
-.lamps i{width:13px;height:13px;border-radius:50%;background:#2c3150}
+.lamps{display:flex;flex-direction:column;gap:5px;padding:7px 6px;border-radius:999px;background:var(--lamp,#141414)}
+.lamps i{width:13px;height:13px;border-radius:50%;background:var(--lamp-off,#333)}
 .light.red .lamps i:nth-child(1){background:var(--stop);box-shadow:0 0 10px var(--stop)}
 .light.yellow .lamps i:nth-child(2){background:var(--warn);box-shadow:0 0 10px var(--warn)}
 .light.green .lamps i:nth-child(3){background:var(--go);box-shadow:0 0 10px var(--go)}
@@ -193,6 +206,10 @@ const fmtU=(v,u)=>u==="m"?`${nf.format(Math.round(v))} m`:u==="h"?`${(+v).toFixe
 const LIGHT={green:"On track",yellow:"Needs work",red:"Not ready"};
 const SPORTS=[["run","Run"],["ride","Ride"],["swim","Swim"],["other","Other"]];
 let D=null, recSport="run";
+const SKINS=[["asphalt","Asphalt","#211f1d"],["pine","Pine","#17221b"],["paper","Paper","#ffffff"],["night","Night","#161a2d"]];
+function skin(){const h=location.hash.slice(1);if(SKINS.some(s=>s[0]===h))return h;try{const v=localStorage.getItem("skin");if(SKINS.some(s=>s[0]===v))return v}catch(e){}return "asphalt"}
+function setSkin(k){document.documentElement.setAttribute("data-skin",k);try{localStorage.setItem("skin",k)}catch(e){}if(location.hash)history.replaceState(null,"","#"+k)}
+document.documentElement.setAttribute("data-skin",skin());
 
 async function main(){
   try{const r=await fetch("data/stats.json",{cache:"no-store"});if(!r.ok)throw 0;D=await r.json()}
@@ -210,7 +227,8 @@ function render(){
   <section>
     <div class="mast">
       <div><div class="kicker">${esc(d.location)} · ${t.year} season</div><h1>${esc(d.athlete)} in <em>motion</em></h1></div>
-      <div class="sync num">Updated ${new Date(d.generated).toLocaleString("en-CA",{month:"short",day:"numeric",hour:"numeric",minute:"2-digit"})}</div>
+      <div class="sync num">Updated ${new Date(d.generated).toLocaleString("en-CA",{month:"short",day:"numeric",hour:"numeric",minute:"2-digit"})}
+        <div class="skins" role="group" aria-label="Colour theme">${SKINS.map(([k,l,c])=>`<button type="button" id="sk-${k}" data-skin="${k}" title="${l}" aria-label="${l} theme" aria-pressed="${k===skin()}" style="background:${c}"></button>`).join("")}</div></div>
     </div>
     <div class="band"><i></i><i></i><i></i><i></i></div>
     <div class="hero">
@@ -260,6 +278,7 @@ function render(){
 
   <footer>Built nightly from Coros via Intervals.icu · routes near home are hidden · <a href="index.html">Classic view</a> · <a href="wall.html">Wall view</a></footer>`;
 
+  document.querySelectorAll(".skins button").forEach(b=>b.onclick=()=>{setSkin(b.dataset.skin);document.querySelectorAll(".skins button").forEach(o=>o.setAttribute("aria-pressed",String(o===b)))});
   document.querySelectorAll("[data-rs]").forEach(b=>b.onclick=()=>{recSport=b.dataset.rs;document.querySelectorAll("[data-rs]").forEach(o=>o.setAttribute("aria-pressed",String(o===b)));drawRecs()});
   drawCalendar(); drawRecs(); measureRoutes();
   if(d.weather) loadWeather(d.weather);
