@@ -28,7 +28,7 @@ OVERLAP_DAYS = 7  # re-check the last week in case you renamed or edited an acti
 
 
 def api_get(path, params=None):
-    key = os.environ.get("INTERVALS_API_KEY")
+    key = (os.environ.get("INTERVALS_API_KEY") or "").strip()
     if not key:
         sys.exit("INTERVALS_API_KEY is not set. Add it as a repository secret.")
     url = BASE + path + ("?" + urllib.parse.urlencode(params) if params else "")
@@ -39,8 +39,13 @@ def api_get(path, params=None):
             with urllib.request.urlopen(req, timeout=90) as r:
                 return json.load(r)
         except urllib.error.HTTPError as e:
-            if e.code in (401, 403):
-                sys.exit("Intervals.icu rejected the API key or athlete id (HTTP %s). Check both secrets." % e.code)
+            if e.code == 401:
+                sys.exit("Intervals.icu did not accept the API key (HTTP 401). Generate a new key and update "
+                         "the INTERVALS_API_KEY secret.")
+            if e.code == 403:
+                sys.exit("Intervals.icu accepted the key but refused access to this athlete (HTTP 403). "
+                         "Check INTERVALS_ATHLETE_ID matches the account the key came from (it starts with 'i'), "
+                         "or set it to 0 to mean 'the owner of this key'.")
             if e.code == 404:
                 return None
             if e.code in (429, 500, 502, 503, 504):
@@ -53,7 +58,7 @@ def api_get(path, params=None):
 
 
 def main():
-    athlete = os.environ.get("INTERVALS_ATHLETE_ID")
+    athlete = (os.environ.get("INTERVALS_ATHLETE_ID") or "").strip()
     if not athlete:
         sys.exit("INTERVALS_ATHLETE_ID is not set. Add it as a repository secret.")
     (CACHE / "tracks").mkdir(parents=True, exist_ok=True)
