@@ -113,7 +113,11 @@ header h1 span{color:var(--accent)}
 .ctrls{display:flex;gap:8px;flex-wrap:wrap}
 
 /* records */
-.recs{display:grid;grid-template-columns:repeat(auto-fill,minmax(118px,1fr));gap:22px 16px}
+.recs{overflow-x:auto}
+.rec-grid{display:grid;gap:18px 16px;align-items:start;min-width:max-content}
+.rec-grid .rowlbl{font-family:var(--display);font-size:20px;font-weight:800;text-transform:uppercase;line-height:1;padding-top:16px}
+.rec-grid .rowlbl.yr{color:var(--accent)}
+.rec-grid .sep{grid-column:1 / -1;height:1px;background:var(--line)}
 .rec{display:flex;flex-direction:column;gap:2px;min-width:0}
 .rec .v{font-family:var(--display);font-size:32px;font-weight:800;line-height:1.05;white-space:nowrap}
 .rec .w{font-size:12px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -176,7 +180,7 @@ const km = m => m>=100000?`${nf.format(Math.round(m/1000))} km`:`${(m/1000).toFi
 const dateFmt = (iso,opt) => new Date(iso.length===10?iso+"T12:00":iso).toLocaleDateString("en-CA",opt);
 const SPORT = {Run:"Run",TrailRun:"Trail run",Ride:"Ride",VirtualRide:"Virtual ride",GravelRide:"Gravel ride",MountainBikeRide:"MTB",Swim:"Swim",OpenWaterSwim:"Open water",Hike:"Hike",Walk:"Walk"};
 
-let D=null, recSport="run", recWhen="all", chartMode="hours";
+let D=null, recSport="run", chartMode="hours";
 
 async function main(){
   try{
@@ -243,8 +247,7 @@ function render(){
   <section>
     <div class="sec-head"><h2>Records</h2>
       <div class="ctrls">
-        <div class="seg" role="group" aria-label="Sport">${[["run","Running"],["ride","Riding"],["swim","Swimming"]].map(([k,l])=>`<button type="button" id="rs-${k}" data-rs="${k}" aria-pressed="${recSport===k}">${l}</button>`).join("")}</div>
-        <div class="seg" role="group" aria-label="Period"><button type="button" id="rw-all" data-rw="all" aria-pressed="${recWhen==="all"}">All time</button><button type="button" id="rw-yr" data-rw="year" aria-pressed="${recWhen==="year"}">${t.year}</button></div>
+        <div class="seg" role="group" aria-label="Sport">${[["run","Running"],["ride","Biking"],["swim","Swimming"]].map(([k,l])=>`<button type="button" id="rs-${k}" data-rs="${k}" aria-pressed="${recSport===k}">${l}</button>`).join("")}</div>
       </div>
     </div>
     <div class="recs" id="recs"></div>
@@ -271,7 +274,6 @@ function render(){
   <footer>Built nightly from Coros via Intervals.icu · routes near home are hidden · <a href="wall.html">Wall view</a></footer>`;
 
   document.querySelectorAll("[data-rs]").forEach(b=>b.onclick=()=>{recSport=b.dataset.rs;setPressed("[data-rs]",b);drawRecs()});
-  document.querySelectorAll("[data-rw]").forEach(b=>b.onclick=()=>{recWhen=b.dataset.rw;setPressed("[data-rw]",b);drawRecs()});
   document.querySelectorAll("[data-cm]").forEach(b=>b.onclick=()=>{chartMode=b.dataset.cm;setPressed("[data-cm]",b);drawTraining()});
   drawRecs(); drawTraining();
   if(d.weather) loadWeather(d.weather);
@@ -281,27 +283,35 @@ function setPressed(sel,on){document.querySelectorAll(sel).forEach(o=>o.setAttri
 
 const SHORT={"Longest run":"Long run","Biggest climb":"Climb","Longest ride":"Long ride","Longest swim":"Long swim"};
 function drawRecs(){
-  const d=D, yr=recWhen==="year", list=yr?(d.pbs_year||[]):d.pbs, t=d.totals;
+  const d=D, yr=String(d.totals.year), A=d.pbs||[], Y=d.pbs_year||[];
   const tile=(label,val,sub,cls="",tip="")=>`<div class="rec ${cls}"${tip?` title="${esc(tip)}"`:""}><span class="lbl">${esc(label)}</span><span class="v num">${val}</span><span class="w">${sub||"&nbsp;"}</span></div>`;
-  const fromPb=p=>{
-    if(!p||p.value==null) return tile(SHORT[p?.label]||p?.label||"","–","",'empty');
+  const blank=label=>tile(label,"–","","empty");
+  const fromPb=(p,label,isYear)=>{
+    if(!p||p.value==null) return blank(label);
     const v=p.unit==="time"?hms(p.value):(p.unit==="elev"||p.unit==="swim")?`${nf.format(Math.round(p.value))} m`:`${nf.format(Math.round(p.value/1000))} km`;
-    return tile(SHORT[p.label]||p.label,v,dateFmt(p.date,yr?{month:"short",day:"numeric"}:{month:"short",year:"numeric"}),yr&&p.is_pb?"gold":"",p.name+(yr&&p.is_pb?" · all-time best":""));
+    return tile(label,v,dateFmt(p.date,isYear?{month:"short",day:"numeric"}:{month:"short",year:"numeric"}),isYear&&p.is_pb?"gold":"",p.name+(isYear&&p.is_pb?" · all-time best":""));
   };
-  const by=l=>list.find(p=>p.label===l);
-  let html="";
-  if(recSport==="run") html=["5K","10K","Half","Marathon","50K","100K","Longest run","Biggest climb"].map(l=>fromPb(by(l))).join("");
+  const pbCol=(name,label)=>({all:fromPb(A.find(p=>p.label===name),label,false),year:fromPb(Y.find(p=>p.label===name),label,true)});
+  let cols=[];
+  if(recSport==="run") cols=[["5K","5K"],["10K","10K"],["Half","Half"],["Marathon","Marathon"],["50K","50K"],["100K","100K"],["Longest run","Long run"],["Biggest climb","Climb"]].map(([n,l])=>pbCol(n,l));
   if(recSport==="ride"){
-    const p=d.power, set=p?(yr?p.year:p.all):null;
-    if(set) html+=Object.keys(set).map(k=>{const a=set[k];const gold=yr&&a&&p.all[k]&&a.watts===p.all[k].watts&&a.date===p.all[k].date;
-      return a?tile(k,`${a.watts} W`,dateFmt(a.date,yr?{month:"short",day:"numeric"}:{month:"short",year:"numeric"}),gold?"gold":"",a.name):tile(k,"–","","empty")}).join("");
-    if(p) html+=tile("FTP est.",p.eftp?`${p.eftp} W`:"–","last 90 days","","95% of your best 20 minutes in the last 90 days");
-    if(p&&p.wkg) html+=tile("W/kg",p.wkg,"at FTP");
-    html+=fromPb(by("Longest ride"));
-    if(p&&p.zwift_cat) html+=tile("Zwift",`Cat ${esc(p.zwift_cat)}`,"racing");
+    const p=d.power;
+    if(p) cols=Object.keys(p.all).map(k=>{const a=p.all[k], y=p.year&&p.year[k];
+      const gold=y&&a&&y.watts===a.watts&&y.date===a.date;
+      return {all:a?tile(k,`${a.watts} W`,dateFmt(a.date,{month:"short",year:"numeric"}),"",a.name):blank(k),
+              year:y?tile(k,`${y.watts} W`,dateFmt(y.date,{month:"short",day:"numeric"}),gold?"gold":"",y.name+(gold?" · all-time best":"")):blank(k)}});
+    cols.push(pbCol("Longest ride","Long ride"));
+    if(p) cols.push({all:tile("FTP est.",p.eftp?`${p.eftp} W`:"–","last 90 days","","95% of your best 20 minutes in the last 90 days"),year:""});
+    if(p&&p.wkg) cols.push({all:tile("W/kg",p.wkg,"at FTP"),year:""});
+    if(p&&p.zwift_cat) cols.push({all:tile("Zwift",`Cat ${esc(p.zwift_cat)}`,"racing"),year:""});
   }
-  if(recSport==="swim") html=fromPb(by("Longest swim"));
-  $("#recs").innerHTML=html;
+  if(recSport==="swim") cols=[pbCol("Longest swim","Long swim")];
+  const n=Math.max(cols.length,6);
+  $("#recs").innerHTML=`<div class="rec-grid" style="grid-template-columns:90px repeat(${n},minmax(104px,1fr))">
+    <div class="rowlbl">All time</div>${cols.map(c=>c.all).join("")}${"<div></div>".repeat(n-cols.length)}
+    <div class="sep"></div>
+    <div class="rowlbl yr">${yr}</div>${cols.map(c=>c.year||"<div></div>").join("")}${"<div></div>".repeat(n-cols.length)}
+  </div>`;
 }
 
 function drawTraining(){
