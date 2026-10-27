@@ -25,12 +25,12 @@
         {
           "metric": "swims_per_week",
           "label": "Swims a week",
-          "target": 3
+          "target": 2
         },
         {
           "metric": "ride_hours_per_week",
           "label": "Ride hours a week",
-          "target": 4
+          "target": 2
         },
         {
           "metric": "run_km_per_week",
