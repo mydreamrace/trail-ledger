@@ -12,6 +12,9 @@ permissions:
   pages: write
   id-token: write
 
+env:
+  PYTHONUNBUFFERED: "1" # show progress lines live in the log
+
 concurrency:
   group: pages
   cancel-in-progress: false

@@ -8,6 +8,7 @@ import datetime as dt
 import json
 import os
 import pathlib
+import re
 import shutil
 import statistics
 import sys
@@ -25,7 +26,30 @@ def load_privacy():
     raw = os.environ.get("PRIVACY_ZONES", "").strip()
     if not raw and (ROOT / "privacy.local.json").exists():
         raw = (ROOT / "privacy.local.json").read_text()
-    return json.loads(raw) if raw else []
+    if not raw:
+        return []
+    try:
+        zones = json.loads(raw)
+        if isinstance(zones, dict):
+            zones = [zones]
+        if isinstance(zones, list) and all(isinstance(z, dict) and "lat" in z and "lng" in z for z in zones):
+            return zones
+    except json.JSONDecodeError:
+        pass
+    # Also accept coordinates pasted straight from Google Maps, e.g. "49.1012, -122.6034",
+    # one place per line (or separated by semicolons). Optional third number = radius in metres.
+    zones = []
+    for part in re.split(r"[;\n]+", raw):
+        nums = re.findall(r"-?\d+(?:\.\d+)?", part)
+        if len(nums) >= 2:
+            lat, lng = float(nums[0]), float(nums[1])
+            if -90 <= lat <= 90 and -180 <= lng <= 180:
+                zones.append({"lat": lat, "lng": lng, "radius_m": float(nums[2]) if len(nums) > 2 else 500})
+    if not zones:
+        # never print the secret itself, the logs of a public repo are public
+        sys.exit("PRIVACY_ZONES is set but couldn't be read. Paste coordinates like 49.1012, -122.6034 "
+                 "(one place per line), or use the JSON format in privacy.example.json.")
+    return zones
 
 
 def parse_start(a):
