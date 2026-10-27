@@ -10,6 +10,7 @@
   --bg:#eef1ec; --surface:#f8faf6; --ink:#17201b; --muted:#5d6a62; --line:#d3dbd3;
   --accent:#0f8a8a; --accent-soft:#cfe9e6; --pb:#e0a100; --pb-ink:#7a5600;
   --ok:#2f7d32; --ok-soft:#dcefd9; --bad:#b3261e; --bad-soft:#f6dcd9;
+  --go:#22a35a; --warn:#e3a008; --stop:#d63b30; --lamp-off:#d5ddd6; --lamp-case:#1c2420;
   --map-bg:#0e1714; --map-contour:rgba(150,190,170,.10); --map-ink:#e7efe9; --map-run:#46e0c8; --map-ride:#7eaaff;
   --display:"Big Shoulders Display","Arial Narrow",Impact,sans-serif;
   --body:"Public Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
@@ -19,11 +20,13 @@
 @media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
   --bg:#101613; --surface:#18201c; --ink:#e6ede8; --muted:#94a39a; --line:#2a3530;
   --accent:#3cc9bb; --accent-soft:#173b37; --pb:#f2be3a; --pb-ink:#f2be3a;
-  --ok:#7fcf84; --ok-soft:#1d3a20; --bad:#ff8a80; --bad-soft:#3d1c1a; color-scheme:dark}}
+  --ok:#7fcf84; --ok-soft:#1d3a20; --bad:#ff8a80; --bad-soft:#3d1c1a;
+  --go:#3fd07a; --warn:#f5c33b; --stop:#ff6b5e; --lamp-off:#2b3530; --lamp-case:#0c1210; color-scheme:dark}}
 :root[data-theme="dark"]{
   --bg:#101613; --surface:#18201c; --ink:#e6ede8; --muted:#94a39a; --line:#2a3530;
   --accent:#3cc9bb; --accent-soft:#173b37; --pb:#f2be3a; --pb-ink:#f2be3a;
-  --ok:#7fcf84; --ok-soft:#1d3a20; --bad:#ff8a80; --bad-soft:#3d1c1a; color-scheme:dark}
+  --ok:#7fcf84; --ok-soft:#1d3a20; --bad:#ff8a80; --bad-soft:#3d1c1a;
+  --go:#3fd07a; --warn:#f5c33b; --stop:#ff6b5e; --lamp-off:#2b3530; --lamp-case:#0c1210; color-scheme:dark}
 
 *{box-sizing:border-box}
 body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--body);font-size:15px;line-height:1.5;
@@ -83,11 +86,27 @@ header h1 span{color:var(--accent)}
 .rb-top span{color:var(--muted);white-space:nowrap}
 .rb-track{position:relative;height:7px;background:var(--line);border-radius:4px}
 .rb-track i{position:absolute;left:0;top:0;bottom:0;border-radius:4px;background:var(--accent)}
-.rb-row.behind .rb-track i{background:var(--pb)}
+.rb-row.green .rb-track i{background:var(--go)}
+.rb-row.yellow .rb-track i{background:var(--warn)}
+.rb-row.red .rb-track i{background:var(--stop)}
+.rb-top b::before{content:"";display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:7px;vertical-align:1px;background:var(--line)}
+.rb-row.green .rb-top b::before{background:var(--go)}
+.rb-row.yellow .rb-top b::before{background:var(--warn)}
+.rb-row.red .rb-top b::before{background:var(--stop)}
+.countdown{justify-content:space-between}
+.light{display:flex;flex-direction:column;align-items:center;gap:5px;margin-left:auto;align-self:center}
+.lamps{display:flex;gap:5px;padding:5px 7px;border-radius:999px;background:var(--lamp-case)}
+.lamps i{width:14px;height:14px;border-radius:50%;background:var(--lamp-off)}
+.light.red .lamps i:nth-child(1){background:var(--stop);box-shadow:0 0 8px var(--stop)}
+.light.yellow .lamps i:nth-child(2){background:var(--warn);box-shadow:0 0 8px var(--warn)}
+.light.green .lamps i:nth-child(3){background:var(--go);box-shadow:0 0 8px var(--go)}
+.light span{font-family:var(--mono);font-size:10.5px;letter-spacing:.06em;text-transform:uppercase;white-space:nowrap}
+.light.red span{color:var(--stop)} .light.yellow span{color:var(--warn)} .light.green span{color:var(--go)}
 .rb-track u{position:absolute;top:-3px;bottom:-3px;width:2px;margin-left:-1px;background:var(--ink);opacity:.55;border-radius:1px}
 .rb-key{display:flex;gap:14px;margin-top:14px;font-size:11.5px;color:var(--muted);flex-wrap:wrap}
 .rb-key i{display:inline-block;width:10px;height:7px;border-radius:2px;background:var(--accent);margin-right:5px;vertical-align:0}
-.rb-key i.b{background:var(--pb)}
+.rb-key i{border-radius:50%;width:8px;height:8px}
+.rb-key i.g{background:var(--go)} .rb-key i.y{background:var(--warn)} .rb-key i.r{background:var(--stop)}
 .rb-key u{display:inline-block;width:2px;height:11px;background:var(--ink);opacity:.55;margin-right:6px;vertical-align:-2px}
 .load{display:flex;gap:28px;flex-wrap:wrap;margin-top:6px;font-size:13px;color:var(--muted)}
 .load strong{color:var(--ink);font-weight:600}
@@ -264,10 +283,10 @@ function render(d){
     <div class="goals">${goals.map(g=>{return `
       <article class="goal">
         <div class="goal-top"><div><h3>${esc(g.name)}</h3><div class="where">${esc(g.where)}</div></div><span class="tag">${esc(g.type)}</span></div>
-        <div class="countdown num"><strong>${g.days}</strong><span>days out<br>${g.date_confirmed?dateFmt(g.date,{month:"short",day:"numeric",year:"numeric"}):"≈ "+dateFmt(g.date,{month:"short",year:"numeric"})+" · date TBC"}</span></div>
+        <div class="countdown num"><strong>${g.days}</strong><span>days out<br>${g.date_confirmed?dateFmt(g.date,{month:"short",day:"numeric",year:"numeric"}):"≈ "+dateFmt(g.date,{month:"short",year:"numeric"})+" · date TBC"}</span>${lightBox(g)}</div>
         ${readyBars(g.readiness||[])}
       </article>`}).join("")}</div>
-    <div class="rb-key"><span>Bars use your last 4 weeks against race-day targets.</span><span><u></u>where you should be by now</span><span><i></i>on track</span><span><i class="b"></i>behind</span></div>
+    <div class="rb-key"><span>Bars use your last 4 weeks against race-day targets.</span><span><u></u>where you should be by now</span><span><i class="g"></i>on track</span><span><i class="y"></i>needs work</span><span><i class="r"></i>not ready</span></div>
     <div class="load num"><span>Last 4 weeks:</span><span><strong>${d.last4.hours} h</strong> training</span><span><strong>${d.last4.long_run_km} km</strong> longest run</span><span><strong>${nf.format(d.last4.elev_m)} m</strong> climbed</span></div>
   </section>`:""}
 
@@ -389,12 +408,17 @@ async function loadWeather(w){
   }
 }
 
+const LIGHT={green:"On track",yellow:"Needs work",red:"Not ready"};
+function lightBox(g){
+  if(!g.light) return "";
+  return `<div class="light ${g.light}" title="Overall readiness: ${Math.round(g.score*100)}% of where you should be by now"><div class="lamps" aria-hidden="true"><i></i><i></i><i></i></div><span>${LIGHT[g.light]}</span></div>`;
+}
 function readyBars(bars){
   if(!bars.length) return "";
   const fmt=(v,u)=>u==="m"?`${nf.format(Math.round(v))} m`:u==="h"?`${(+v).toFixed(1)} h`:u==="km"?`${Math.round(v)} km`:(+v).toFixed(1).replace(/\.0$/,"");
   return `<div class="rb">${bars.map(b=>{
     const fill=Math.max(2,Math.min(100,b.current/b.target*100)), mark=Math.min(100,b.expected/b.target*100);
-    const word=b.status==="ahead"?"Ahead":b.status==="on-track"?"On track":"Behind";
+    const word=LIGHT[b.status]||"";
     return `<div class="rb-row ${b.status}" title="${word}: ${fmt(b.current,b.unit)} now, about ${fmt(b.expected,b.unit)} expected at this point, ${fmt(b.target,b.unit)} by race day">
       <div class="rb-top"><b>${esc(b.label)}</b><span class="num">${fmt(b.current,b.unit)} / ${fmt(b.target,b.unit)}</span></div>
       <div class="rb-track"><i style="width:${fill.toFixed(1)}%"></i><u style="left:${mark.toFixed(1)}%"></u></div></div>`}).join("")}</div>`;

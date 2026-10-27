@@ -153,6 +153,15 @@ UNITS = {"swims_per_week": "", "rides_per_week": "", "ride_hours_per_week": "h",
          "run_km_per_week": "km", "run_hours_per_week": "h", "long_run_km": "km", "climb_per_week": "m"}
 
 
+def light_for(ratio):
+    """Traffic light from how close you are to where you should be by now."""
+    if ratio >= 0.85:
+        return "green"
+    if ratio >= 0.6:
+        return "yellow"
+    return "red"
+
+
 def expected_share(weeks_out):
     """How much of the race-day target you'd typically be at this many weeks out.
     About half at 30+ weeks, rising steadily to full 3 weeks out, then easing for the taper."""
@@ -180,10 +189,16 @@ def readiness_for_goals(goals, today, last4):
             cur, target = m[key], float(r["target"])
             expected = target * share
             ratio = cur / expected if expected else 0
-            status = "ahead" if ratio >= 1.1 else "on-track" if ratio >= 0.85 else "behind"
+            status = light_for(ratio)
             bars.append({"label": r.get("label", key), "unit": UNITS[key], "current": round(cur, 1),
+                         "ratio": round(ratio, 2),
                          "target": target, "expected": round(expected, 1), "status": status})
         g["readiness"] = bars
+        if bars:
+            # overall: average of the bars, each capped so one big strength can't hide a weakness
+            score = sum(min(b["ratio"], 1.2) for b in bars) / len(bars)
+            g["light"] = light_for(score)
+            g["score"] = round(score, 2)
         out.append(g)
     return out
 
