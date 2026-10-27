@@ -56,6 +56,30 @@ def parse_start(a):
     return dt.datetime.fromisoformat(a["start"].replace("Z", ""))
 
 
+def drop_duplicates(acts):
+    """The same workout can reach Intervals.icu twice (e.g. Zwift directly and again via Garmin).
+    Treat two activities as one if they're the same sport, start within 3 minutes of each other
+    and their distances are within 10%. Keeps whichever has more detail (longer moving time)."""
+    kept, dupes = [], 0
+    for a in acts:  # acts is sorted by start time
+        start = parse_start(a)
+        match = None
+        for k in reversed(kept[-6:]):
+            if (start - parse_start(k)).total_seconds() > 180:
+                break
+            same_dist = abs(a["dist_m"] - k["dist_m"]) <= 0.1 * max(a["dist_m"], k["dist_m"], 1)
+            if k["cat"] == a["cat"] and same_dist:
+                match = k
+                break
+        if match is None:
+            kept.append(a)
+        else:
+            dupes += 1
+            if a["moving_s"] > match["moving_s"]:
+                kept[kept.index(match)] = a
+    return kept, dupes
+
+
 FORM_ZONES = [  # Intervals.icu's form (fitness minus fatigue) bands
     (25, "Transition", "Very fresh, fitness may be slipping"),
     (5, "Fresh", "Rested and ready for a hard day"),
@@ -239,6 +263,7 @@ def main():
     acts = list(json.loads((CACHE / "activities.json").read_text()).values())
     acts = [a for a in acts if a.get("start")]
     acts.sort(key=parse_start)
+    acts, dupes = drop_duplicates(acts)
     tracks = {}
     for a in acts:
         p = CACHE / "tracks" / f"{a['id']}.json"
@@ -428,7 +453,7 @@ def main():
     (OUT / ".nojekyll").write_text("")
     size_kb = (OUT / "data/stats.json").stat().st_size // 1024
     print(f"Built site: {len(acts)} activities, {len(heat)} heatmap routes, stats.json {size_kb} KB, "
-          f"{len(zones)} privacy zone(s).")
+          f"{len(zones)} privacy zone(s), {dupes} duplicate(s) skipped.")
 
 
 if __name__ == "__main__":
