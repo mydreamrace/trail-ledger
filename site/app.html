@@ -1,9 +1,11 @@
 <title>Patrick's Trail Ledger</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@600;800;900&family=Public+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
 <style>
-/* Layout: topo-map hero (heatmap) up top, then goals, PBs, trends, recent log. Single column that splits into grids on wide screens. */
+/* Layout: street-map hero (route heatmap) up top, then goals, PBs, trends, recent log. Single column that splits into grids on wide screens. */
 :root{
   --bg:#eef1ec; --surface:#f8faf6; --ink:#17201b; --muted:#5d6a62; --line:#d3dbd3;
   --accent:#0f8a8a; --accent-soft:#cfe9e6; --pb:#e0a100; --pb-ink:#7a5600;
@@ -41,9 +43,13 @@ header h1 span{color:var(--accent)}
 .sync{text-align:right;font-family:var(--mono);font-size:12.5px;color:var(--muted)}
 
 .hero{position:relative;background:var(--map-bg);color:var(--map-ink);border-radius:10px;overflow:hidden;aspect-ratio:16/7;min-height:340px;max-width:100%}
-.hero canvas{position:absolute;inset:0;width:100%;height:100%;display:block;touch-action:none;cursor:grab}
-.hero canvas:active{cursor:grabbing}
-.hero-overlay{position:absolute;left:0;right:0;bottom:0;padding:18px 20px;display:flex;justify-content:space-between;align-items:end;gap:16px;flex-wrap:wrap;pointer-events:none;
+.hero #map{position:absolute;inset:0;background:var(--map-bg)}
+.hero .leaflet-container{font-family:var(--body);background:var(--map-bg)}
+.hero .leaflet-control-attribution{background:rgba(14,23,20,.7);color:#9fb3a8;font-size:10.5px}
+.hero .leaflet-control-attribution a{color:#cfe0d6}
+.hero .leaflet-control-zoom a{background:rgba(14,23,20,.85);color:var(--map-ink);border-color:rgba(255,255,255,.18)}
+.heat-canvas{position:absolute;top:0;left:0;pointer-events:none}
+.hero-overlay{position:absolute;z-index:800;left:0;right:0;bottom:0;padding:18px 20px;display:flex;justify-content:space-between;align-items:end;gap:16px;flex-wrap:wrap;pointer-events:none;
   background:linear-gradient(to top,rgba(14,23,20,.92),rgba(14,23,20,0))}
 .hero-label{font-family:var(--mono);font-size:11px;letter-spacing:.12em;text-transform:uppercase;opacity:.75}
 .hero-place{font-family:var(--display);font-size:clamp(22px,3vw,30px);font-weight:800;text-transform:uppercase}
@@ -51,7 +57,7 @@ header h1 span{color:var(--accent)}
 .totals div{display:flex;flex-direction:column}
 .totals strong{font-family:var(--display);font-size:clamp(30px,4vw,44px);font-weight:800;line-height:1}
 .totals span{font-family:var(--mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;opacity:.75}
-.map-ctl{position:absolute;top:14px;left:16px;right:16px;display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap}
+.map-ctl{position:absolute;z-index:900;top:14px;left:16px;display:flex;gap:8px;flex-wrap:wrap;max-width:calc(100% - 80px)}
 .chips{display:flex;gap:6px;flex-wrap:wrap}
 .map-ctl button{font-family:var(--mono);font-size:11.5px;letter-spacing:.06em;text-transform:uppercase;background:rgba(255,255,255,.08);color:var(--map-ink);
   border:1px solid rgba(255,255,255,.18);border-radius:999px;padding:5px 11px;cursor:pointer}
@@ -170,7 +176,7 @@ function render(d){
   </header>
 
   <section class="hero" aria-label="Route heatmap">
-    <canvas id="map" aria-label="Heatmap of every run and ride route. Drag to pan, scroll or pinch to zoom."></canvas>
+    <div id="map" aria-label="Map of every run and ride route. Drag to pan, scroll or pinch to zoom."></div>
     <div class="map-ctl">
       <div class="chips" role="group" aria-label="Sport">
         <button type="button" id="f-all" data-f="all" aria-pressed="true">All</button>
@@ -285,59 +291,63 @@ function yoyChart(d){
 }
 
 function heatmap(h){
-  const cv=$("#map"), cx=cv.getContext("2d");
-  const lat0=h.center[0]*Math.PI/180;
-  const routes=h.routes.map(r=>({c:r.c,y:r.y,segs:r.p.map(p=>decode(p).map(([la,ln])=>[(ln-h.center[1])*111.32*Math.cos(lat0),-(la-h.center[0])*110.57]))}));
-  let sport="all", year="all", zoom=1, panX=0, panY=0;
-  function draw(){
-    const r=cv.getBoundingClientRect(), dpr=devicePixelRatio||1;
-    if(!r.width) return;
-    cv.width=r.width*dpr; cv.height=r.height*dpr; cx.setTransform(dpr,0,0,dpr,0,0);
-    const W=r.width,H=r.height, base=Math.min(W,H)/2/h.radius_km, s=base*zoom, ox=W/2+panX, oy=H/2+panY;
-    cx.fillStyle=css("--map-bg"); cx.fillRect(0,0,W,H);
-    cx.strokeStyle=css("--map-contour"); cx.lineWidth=1;
-    for(let c=0;c<22;c++){cx.beginPath();
-      for(let t=0;t<=1.0001;t+=.01){const a=t*Math.PI*2,rad=(.08+c*.045)*Math.max(W,H)*(1+.15*Math.sin(a*3+c*.4));
-        const px=W*.66+Math.cos(a)*rad,py=H*.32+Math.sin(a)*rad*.6; t===0?cx.moveTo(px,py):cx.lineTo(px,py)} cx.stroke()}
-    cx.globalCompositeOperation="lighter"; cx.lineCap="round"; cx.lineJoin="round";
-    const run=css("--map-run"), ride=css("--map-ride");
-    const n=routes.filter(r=>(sport==="all"||r.c===sport)&&(year==="all"||String(r.y)===year)).length;
-    const alpha=Math.max(.08,Math.min(.5,6/Math.sqrt(n+1)));
-    for(const rt of routes){
-      if(sport!=="all"&&rt.c!==sport) continue;
-      if(year!=="all"&&String(rt.y)!==year) continue;
-      cx.strokeStyle=rt.c==="ride"?ride:run; cx.globalAlpha=alpha; cx.lineWidth=rt.c==="ride"?1.1:1.5;
-      cx.beginPath();
-      for(const seg of rt.segs) seg.forEach(([x,y],i)=>i?cx.lineTo(ox+x*s,oy+y*s):cx.moveTo(ox+x*s,oy+y*s));
-      cx.stroke();
-    }
-    cx.globalAlpha=1; cx.globalCompositeOperation="source-over";
+  const el=$("#map");
+  if(!window.L){ // map library blocked or offline: plain dark panel, routes still drawn below
+    el.innerHTML='<div style="position:absolute;inset:0;display:grid;place-items:center;color:#9fb3a8;font-size:13px">Map tiles unavailable here</div>';
+    return;
   }
+  const routes=h.routes.map(r=>({c:r.c,y:r.y,segs:r.p.map(decode)}));
+  const map=L.map(el,{zoomControl:false,attributionControl:true,preferCanvas:true,worldCopyJump:false,minZoom:3,maxZoom:17});
+  L.control.zoom({position:"topright"}).addTo(map);
+  // Dark basemap so the routes glow; free CARTO tiles over OpenStreetMap data
+  L.tileLayer("https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png",{
+    subdomains:"abcd",maxZoom:19,
+    attribution:'&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions">CARTO</a>'
+  }).addTo(map);
+  const dLat=h.radius_km/110.57, dLng=h.radius_km/(111.32*Math.cos(h.center[0]*Math.PI/180));
+  map.fitBounds([[h.center[0]-dLat*.6,h.center[1]-dLng*.6],[h.center[0]+dLat*.6,h.center[1]+dLng*.6]]);
+
+  // Custom canvas layer: additive blending makes well-worn routes glow brighter, like a real heatmap
+  let sport="all", year="all";
+  const HeatLayer=L.Layer.extend({
+    onAdd(m){
+      this._c=L.DomUtil.create("canvas","heat-canvas");
+      m.getPanes().overlayPane.appendChild(this._c);
+      m.on("moveend zoomend resize viewreset",this._draw,this);
+      m.on("zoomanim",this._hide,this);
+      this._draw();
+    },
+    onRemove(m){this._c.remove(); m.off("moveend zoomend resize viewreset",this._draw,this); m.off("zoomanim",this._hide,this)},
+    _hide(){this._c.style.opacity=0},
+    _draw(){
+      const m=this._map, size=m.getSize(), dpr=devicePixelRatio||1, c=this._c, cx=c.getContext("2d");
+      L.DomUtil.setPosition(c,m.containerPointToLayerPoint([0,0]));
+      c.width=size.x*dpr; c.height=size.y*dpr; c.style.width=size.x+"px"; c.style.height=size.y+"px"; c.style.opacity=1;
+      cx.setTransform(dpr,0,0,dpr,0,0); cx.clearRect(0,0,size.x,size.y);
+      const z=m.getZoom(), bounds=m.getBounds().pad(.2);
+      const shown=routes.filter(r=>(sport==="all"||r.c===sport)&&(year==="all"||String(r.y)===year));
+      const alpha=Math.max(.12,Math.min(.6,7/Math.sqrt(shown.length+1)))*(z>=14?1.3:1);
+      cx.globalCompositeOperation="lighter"; cx.lineCap="round"; cx.lineJoin="round";
+      cx.lineWidth=z>=15?3:z>=13?2.2:1.6;
+      const run=css("--map-run"), ride=css("--map-ride");
+      for(const rt of shown){
+        cx.strokeStyle=rt.c==="ride"?ride:run; cx.globalAlpha=Math.min(1,alpha);
+        cx.beginPath();
+        for(const seg of rt.segs){
+          if(!seg.some(p=>bounds.contains(p))) continue;
+          seg.forEach((p,i)=>{const q=m.latLngToContainerPoint(p); i?cx.lineTo(q.x,q.y):cx.moveTo(q.x,q.y)});
+        }
+        cx.stroke();
+      }
+      cx.globalAlpha=1; cx.globalCompositeOperation="source-over";
+    }
+  });
+  const heat=new HeatLayer().addTo(map);
   const press=(sel,attr,set)=>document.querySelectorAll(sel).forEach(b=>b.addEventListener("click",()=>{
-    set(b.dataset[attr]); document.querySelectorAll(sel).forEach(o=>o.setAttribute("aria-pressed",String(o===b))); draw()}));
+    set(b.dataset[attr]); document.querySelectorAll(sel).forEach(o=>o.setAttribute("aria-pressed",String(o===b))); heat._draw()}));
   press("[data-f]","f",v=>sport=v);
   press("[data-y]","y",v=>year=v);
-  // pan and zoom
-  const pts=new Map(); let lastDist=0;
-  cv.addEventListener("pointerdown",e=>{cv.setPointerCapture(e.pointerId);pts.set(e.pointerId,[e.clientX,e.clientY])});
-  cv.addEventListener("pointermove",e=>{
-    if(!pts.has(e.pointerId)) return;
-    const prev=pts.get(e.pointerId); pts.set(e.pointerId,[e.clientX,e.clientY]);
-    if(pts.size===1){panX+=e.clientX-prev[0]; panY+=e.clientY-prev[1]; draw()}
-    else if(pts.size===2){const [a,b]=[...pts.values()],dist=Math.hypot(a[0]-b[0],a[1]-b[1]);
-      if(lastDist){zoomAt(dist/lastDist,(a[0]+b[0])/2,(a[1]+b[1])/2)} lastDist=dist}
-  });
-  const up=e=>{pts.delete(e.pointerId); if(pts.size<2) lastDist=0};
-  cv.addEventListener("pointerup",up); cv.addEventListener("pointercancel",up);
-  function zoomAt(f,clientX,clientY){
-    const r=cv.getBoundingClientRect(), nz=Math.max(.5,Math.min(40,zoom*f)); f=nz/zoom;
-    const mx=clientX-r.left-r.width/2, my=clientY-r.top-r.height/2;
-    panX=mx-(mx-panX)*f; panY=my-(my-panY)*f; zoom=nz; draw();
-  }
-  cv.addEventListener("wheel",e=>{e.preventDefault(); zoomAt(Math.exp(-e.deltaY*.0015),e.clientX,e.clientY)},{passive:false});
-  cv.addEventListener("dblclick",()=>{zoom=1;panX=0;panY=0;draw()});
-  new ResizeObserver(draw).observe(cv);
-  matchMedia("(prefers-color-scheme: dark)").addEventListener("change",draw);
+  new ResizeObserver(()=>map.invalidateSize()).observe(el);
 }
 
 main();
