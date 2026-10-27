@@ -217,14 +217,13 @@ function render(){
       <div class="mapcard">
         <div id="map" aria-label="Every run and ride drawn on a map. Drag to pan, scroll or pinch to zoom."></div>
         <div class="chips" role="group" aria-label="Show routes"><button type="button" id="mf-all" data-f="all" aria-pressed="true">All</button><button type="button" id="mf-run" data-f="run" aria-pressed="false">Runs</button><button type="button" id="mf-ride" data-f="ride" aria-pressed="false">Rides</button></div>
-        <div class="map-tag"><span>Every route</span><b>${esc(d.heat.label||"Home turf")}</b></div>
+        <div class="map-tag"><span>Every ${t.year} route</span><b>${esc(d.heat.label||"Home turf")}</b></div>
       </div>
       <div class="bigs">
-        <div class="big" style="--c:var(--run)"><span class="kicker">Distance</span><span class="v num">${nf.format(t.km)}<span class="u">km</span></span><span class="fun">≈ <b>${Math.round(marathons)} marathons</b></span></div>
-        <div class="big" style="--c:var(--ride)"><span class="kicker">Time moving</span><span class="v num">${nf.format(t.hours)}<span class="u">h</span></span><span class="fun"><b>${(t.hours/Math.max(1,dayOfYear(now))*7).toFixed(1)} h</b> a week</span></div>
-        <div class="big" style="--c:var(--gold)"><span class="kicker">Climbing</span><span class="v num">${nf.format(t.elev_m)}<span class="u">m</span></span><span class="fun">≈ <b>${everest.toFixed(1)} Everests</b></span></div>
-        <div class="big" style="--c:var(--swim)"><span class="kicker">Activities</span><span class="v num">${nf.format(t.count)}</span><span class="fun"><b>${(d.year_days||[]).length}</b> active days</span></div>
-        ${L.km?`<div class="life num">Since ${esc(L.since)}: <b>${nf.format(L.km)} km</b>, ${(L.km/40075).toFixed(2)}× around the world · <b>${nf.format(L.hours)} h</b> · <b>${(L.elev_m/8849).toFixed(0)} Everests</b></div>`:""}
+        <div class="big" style="--c:var(--run)"><span class="kicker">${t.year} distance</span><span class="v num">${nf.format(t.km)}<span class="u">km</span></span><span class="fun">≈ <b>${Math.round(marathons)} marathons</b></span></div>
+        <div class="big" style="--c:var(--ride)"><span class="kicker">${t.year} time moving</span><span class="v num">${nf.format(t.hours)}<span class="u">h</span></span><span class="fun"><b>${(t.hours/Math.max(1,dayOfYear(now))*7).toFixed(1)} h</b> a week</span></div>
+        <div class="big" style="--c:var(--gold)"><span class="kicker">${t.year} climbing</span><span class="v num">${nf.format(t.elev_m)}<span class="u">m</span></span><span class="fun">≈ <b>${everest.toFixed(1)} Everests</b></span></div>
+        <div class="big" style="--c:var(--swim)"><span class="kicker">${t.year} activities</span><span class="v num">${nf.format(t.count)}</span><span class="fun"><b>${(d.year_days||[]).length}</b> active days</span></div>
       </div>
     </div>
   </section>
@@ -264,7 +263,7 @@ function render(){
   document.querySelectorAll("[data-rs]").forEach(b=>b.onclick=()=>{recSport=b.dataset.rs;document.querySelectorAll("[data-rs]").forEach(o=>o.setAttribute("aria-pressed",String(o===b)));drawRecs()});
   drawCalendar(); drawRecs(); measureRoutes();
   if(d.weather) loadWeather(d.weather);
-  heatmap(d.heat);
+  heatmap(d.heat, d.totals.year);
 }
 function dayOfYear(n){return Math.floor((n-new Date(n.getFullYear(),0,0))/864e5)}
 
@@ -397,9 +396,9 @@ async function loadWeather(w){
 }
 
 /* ---------- map ---------- */
-function heatmap(h){
+function heatmap(h, year){
   const el=$("#map"); if(!window.L||!el) return;
-  const routes=h.routes.map(r=>({c:r.c,segs:r.p.map(decode)}));
+  const routes=h.routes.filter(r=>!year||r.y===year).map(r=>({c:r.c,segs:r.p.map(decode)}));
   const map=L.map(el,{zoomControl:false,scrollWheelZoom:false,minZoom:3,maxZoom:17});
   L.control.zoom({position:"topright"}).addTo(map);
   L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}",{maxNativeZoom:16,maxZoom:17,attribution:"Tiles &copy; Esri, HERE, Garmin, &copy; OpenStreetMap contributors"}).addTo(map);
