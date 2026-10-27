@@ -9,6 +9,7 @@
 :root{
   --bg:#eef1ec; --surface:#f8faf6; --ink:#17201b; --muted:#5d6a62; --line:#d3dbd3;
   --accent:#0f8a8a; --accent-soft:#cfe9e6; --pb:#e0a100; --pb-ink:#7a5600;
+  --ok:#2f7d32; --ok-soft:#dcefd9; --bad:#b3261e; --bad-soft:#f6dcd9;
   --map-bg:#0e1714; --map-contour:rgba(150,190,170,.10); --map-ink:#e7efe9; --map-run:#46e0c8; --map-ride:#7eaaff;
   --display:"Big Shoulders Display","Arial Narrow",Impact,sans-serif;
   --body:"Public Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
@@ -17,10 +18,12 @@
 }
 @media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
   --bg:#101613; --surface:#18201c; --ink:#e6ede8; --muted:#94a39a; --line:#2a3530;
-  --accent:#3cc9bb; --accent-soft:#173b37; --pb:#f2be3a; --pb-ink:#f2be3a; color-scheme:dark}}
+  --accent:#3cc9bb; --accent-soft:#173b37; --pb:#f2be3a; --pb-ink:#f2be3a;
+  --ok:#7fcf84; --ok-soft:#1d3a20; --bad:#ff8a80; --bad-soft:#3d1c1a; color-scheme:dark}}
 :root[data-theme="dark"]{
   --bg:#101613; --surface:#18201c; --ink:#e6ede8; --muted:#94a39a; --line:#2a3530;
-  --accent:#3cc9bb; --accent-soft:#173b37; --pb:#f2be3a; --pb-ink:#f2be3a; color-scheme:dark}
+  --accent:#3cc9bb; --accent-soft:#173b37; --pb:#f2be3a; --pb-ink:#f2be3a;
+  --ok:#7fcf84; --ok-soft:#1d3a20; --bad:#ff8a80; --bad-soft:#3d1c1a; color-scheme:dark}
 
 *{box-sizing:border-box}
 body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--body);font-size:15px;line-height:1.5;
@@ -92,8 +95,35 @@ header h1 span{color:var(--accent)}
 .pb.is-pb .t{color:var(--pb-ink)}
 @media (max-width:640px){.pb-row{grid-template-columns:1fr;gap:6px}.pb-row-label{padding-top:0;font-size:18px}}
 
-.trends{display:grid;grid-template-columns:3fr 2fr;gap:16px}
+.trends{display:grid;grid-template-columns:1.45fr 1.15fr 1fr;gap:16px}
+@media (max-width:1060px){.trends{grid-template-columns:1fr 1fr}.trends .ready{grid-column:1 / -1}}
 @media (max-width:820px){.trends{grid-template-columns:1fr}}
+
+/* readiness panel: fitness, focus, weather */
+.ready{display:flex;flex-direction:column;gap:14px}
+.ready .blk{display:flex;flex-direction:column;gap:8px}
+.ready .blk + .blk{border-top:1px solid var(--line);padding-top:14px}
+.fit-nums{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.fit-nums strong{font-family:var(--display);font-size:34px;font-weight:800;line-height:1;display:block}
+.fit-nums span{font-family:var(--mono);font-size:10.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+.zone{display:inline-flex;align-items:center;gap:6px;font-size:12.5px;color:var(--muted)}
+.zone b{font-family:var(--mono);font-size:10.5px;letter-spacing:.06em;text-transform:uppercase;padding:2px 8px;border-radius:999px;font-weight:500}
+.zone-fresh b,.zone-transition b{background:var(--accent-soft);color:var(--accent)}
+.zone-neutral b{background:var(--line);color:var(--ink)}
+.zone-optimal b{background:var(--ok-soft);color:var(--ok)}
+.zone-high-risk b{background:var(--bad-soft);color:var(--bad)}
+.spark svg{display:block;width:100%;height:42px}
+.focus-head{display:flex;justify-content:space-between;align-items:baseline;gap:8px;flex-wrap:wrap}
+.focus-head strong{font-weight:600}
+.phase{font-family:var(--mono);font-size:10.5px;letter-spacing:.06em;text-transform:uppercase;padding:2px 8px;border-radius:999px;background:var(--accent-soft);color:var(--accent)}
+.ready p{margin:0;font-size:13px;color:var(--muted)}
+.ready ul{margin:0;padding-left:18px;font-size:13px;display:flex;flex-direction:column;gap:4px}
+.wx{display:grid;grid-template-columns:auto 1fr;gap:4px 14px;align-items:center}
+.wx .temp{font-family:var(--display);font-size:44px;font-weight:800;line-height:.9;grid-row:span 2}
+.wx .cond{font-weight:600;font-size:14px}
+.wx .meta{font-size:12.5px;color:var(--muted)}
+.wx-window{font-size:13px;background:var(--accent-soft);color:var(--ink);padding:8px 10px;border-radius:6px}
+.wx-window b{color:var(--accent)}
 .panel{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:16px;min-width:0}
 .panel h3{margin:0 0 4px;font-size:14px;font-weight:600}
 .panel .sub{font-size:12.5px;color:var(--muted);margin-bottom:10px}
@@ -236,6 +266,7 @@ function render(d){
           <div><strong>${d.streaks.big_weeks}</strong><span>of 16 weeks over 8 h</span></div>
           <div><strong>${d.streaks.vs_last_pct==null?"n/a":(d.streaks.vs_last_pct>0?"+":"")+d.streaks.vs_last_pct+"%"}</strong><span>run km vs ${d.yoy.last_year} to date</span></div>
         </div></div>
+      ${readyPanel(d)}
     </div>
   </section>
 
@@ -253,7 +284,72 @@ function render(d){
 
   weeklyChart(d.weekly);
   yoyChart(d.yoy);
+  if(d.weather) loadWeather(d.weather);
   heatmap(d.heat);
+}
+
+function readyPanel(d){
+  const f=d.fitness, fo=d.focus;
+  let html=`<div class="panel ready">`;
+  if(f){
+    const zoneCls="zone-"+f.zone.toLowerCase().replace(/\s+/g,"-");
+    const tr=f.trend||[], mx=Math.max(...tr,1), mn=Math.min(...tr,0), W=240, H=42;
+    const pts=tr.map((v,i)=>`${(i/(Math.max(1,tr.length-1))*W).toFixed(1)},${(H-4-(v-mn)/((mx-mn)||1)*(H-10)).toFixed(1)}`).join(" ");
+    html+=`<div class="blk"><h3>Fitness</h3>
+      <div class="fit-nums num">
+        <div><strong>${f.ctl}</strong><span>Fitness</span></div>
+        <div><strong>${f.atl}</strong><span>Fatigue</span></div>
+        <div><strong>${f.form>0?"+":""}${f.form}</strong><span>Form</span></div>
+      </div>
+      <div class="zone ${zoneCls}"><b>${esc(f.zone)}</b>${esc(f.zone_note)}</div>
+      ${tr.length>1?`<div class="spark" title="Fitness over the last ${tr.length} days"><svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" role="img" aria-label="Fitness trend, last ${tr.length} days"><polyline points="${pts} ${W},${H} 0,${H}" fill="var(--accent)" opacity=".12" stroke="none"/><polyline points="${pts}" fill="none" stroke="var(--accent)" stroke-width="2" vector-effect="non-scaling-stroke"/></svg></div>`:""}
+      <p>${f.ramp!=null?`${f.ramp>=0?"+":""}${f.ramp} fitness this week. `:""}${f.source==="estimate"?"Estimated from training load.":"From Intervals.icu."}</p>
+    </div>`;
+  }
+  if(fo){
+    html+=`<div class="blk"><h3>Focus</h3>
+      <div class="focus-head"><strong>${esc(fo.race)} · ${fo.weeks} weeks</strong><span class="phase">${esc(fo.phase)}</span></div>
+      <p>${esc(fo.summary)}</p>
+      ${fo.tips.length?`<ul>${fo.tips.map(t=>`<li>${esc(t)}</li>`).join("")}</ul>`:""}
+      ${fo.then.length?`<p>Then: ${fo.then.map(x=>`${esc(x.name)} in ${x.weeks} weeks`).join(", ")}</p>`:""}
+    </div>`;
+  }
+  if(d.weather) html+=`<div class="blk"><h3>Today in ${esc(d.weather.place)}</h3><div id="wx"><p>Loading forecast…</p></div></div>`;
+  return html+`</div>`;
+}
+
+const WMO={0:"Clear",1:"Mostly clear",2:"Partly cloudy",3:"Overcast",45:"Fog",48:"Freezing fog",51:"Light drizzle",53:"Drizzle",55:"Heavy drizzle",
+  56:"Freezing drizzle",57:"Freezing drizzle",61:"Light rain",63:"Rain",65:"Heavy rain",66:"Freezing rain",67:"Freezing rain",71:"Light snow",73:"Snow",75:"Heavy snow",
+  77:"Snow grains",80:"Showers",81:"Showers",82:"Heavy showers",85:"Snow showers",86:"Snow showers",95:"Thunderstorm",96:"Thunderstorm, hail",99:"Thunderstorm, hail"};
+async function loadWeather(w){
+  const box=$("#wx"); if(!box) return;
+  const url=`https://api.open-meteo.com/v1/forecast?latitude=${w.lat}&longitude=${w.lng}`+
+    `&current=temperature_2m,apparent_temperature,weather_code,wind_speed_10m`+
+    `&hourly=temperature_2m,precipitation_probability,weather_code&daily=temperature_2m_max,temperature_2m_min,precipitation_probability_max,sunrise,sunset`+
+    `&timezone=auto&forecast_days=1`;
+  try{
+    const r=await fetch(url); if(!r.ok) throw new Error(r.status);
+    const x=await r.json(), c=x.current, dly=x.daily, h=x.hourly;
+    // best 2-hour window from now until an hour after sunset: lowest rain chance, then closest to 10°C
+    const nowH=new Date(c.time).getHours(), sunset=new Date(dly.sunset[0]).getHours()+1, sunrise=new Date(dly.sunrise[0]).getHours();
+    let best=null;
+    for(let i=Math.max(nowH,sunrise);i<Math.min(sunset,23);i++){
+      if(h.precipitation_probability[i]==null||h.precipitation_probability[i+1]==null) continue;
+      const rain=Math.max(h.precipitation_probability[i],h.precipitation_probability[i+1]);
+      const temp=(h.temperature_2m[i]+h.temperature_2m[i+1])/2;
+      const score=rain+Math.abs(temp-10)*1.5;
+      if(!best||score<best.score) best={i,rain,temp,score};
+    }
+    const hr=n=>new Date(2000,0,1,n).toLocaleTimeString("en-CA",{hour:"numeric"});
+    box.innerHTML=`<div class="wx num">
+        <div class="temp">${Math.round(c.temperature_2m)}°</div>
+        <div class="cond">${esc(WMO[c.weather_code]||"")}</div>
+        <div class="meta">Feels ${Math.round(c.apparent_temperature)}° · H ${Math.round(dly.temperature_2m_max[0])}° L ${Math.round(dly.temperature_2m_min[0])}° · Wind ${Math.round(c.wind_speed_10m)} km/h · Rain ${dly.precipitation_probability_max[0]??0}%</div>
+      </div>
+      ${best?`<div class="wx-window">Best window: <b>${hr(best.i)} to ${hr(best.i+2)}</b> · ${Math.round(best.temp)}° · ${best.rain}% rain</div>`:`<p>Daylight is done for today.</p>`}`;
+  }catch(e){
+    box.innerHTML=`<p>Forecast unavailable right now.</p>`;
+  }
 }
 
 const PB_SHORT={"Marathon":"Marathon","Longest run":"Long run","Biggest climb":"Climb","Longest ride":"Long ride"};

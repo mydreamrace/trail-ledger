@@ -56,6 +56,118 @@ def parse_start(a):
     return dt.datetime.fromisoformat(a["start"].replace("Z", ""))
 
 
+FORM_ZONES = [  # Intervals.icu's form (fitness minus fatigue) bands
+    (25, "Transition", "Very fresh, fitness may be slipping"),
+    (5, "Fresh", "Rested and ready for a hard day"),
+    (-10, "Neutral", "Steady, maintaining"),
+    (-30, "Optimal", "Productive training load"),
+    (-999, "High risk", "Deep fatigue, back off"),
+]
+
+
+def compute_fitness(acts, today):
+    """Fitness (CTL), fatigue (ATL) and form for today plus a 90-day fitness trend.
+
+    Uses Intervals.icu's own numbers when the wellness file is there, otherwise
+    works them out from each activity's training load (42 and 7 day averages)."""
+    series = {}
+    source = "intervals"
+    wpath = CACHE / "wellness.json"
+    if wpath.exists():
+        for w in json.loads(wpath.read_text()):
+            if w.get("ctl") is not None and w.get("atl") is not None:
+                series[w["date"]] = (w["ctl"], w["atl"])
+    if not series:
+        source = "estimate"
+        loads = {}
+        for a in acts:
+            if a.get("load"):
+                d = a["start"][:10]
+                loads[d] = loads.get(d, 0) + a["load"]
+        if not loads:
+            return None
+        day = dt.date.fromisoformat(min(loads))
+        ctl = atl = 0.0
+        while day <= today:
+            load = loads.get(day.isoformat(), 0)
+            ctl += (load - ctl) / 42
+            atl += (load - atl) / 7
+            series[day.isoformat()] = (ctl, atl)
+            day += dt.timedelta(days=1)
+    dates = sorted(d for d in series if d <= today.isoformat())
+    if not dates:
+        return None
+    ctl, atl = series[dates[-1]]
+    form = ctl - atl
+    zone = next(z for z in FORM_ZONES if form > z[0])
+    week_ago = (today - dt.timedelta(days=7)).isoformat()
+    past = [d for d in dates if d <= week_ago]
+    ramp = ctl - series[past[-1]][0] if past else None
+    trend = [round(series[d][0], 1) for d in dates[-90:]]
+    return {"ctl": round(ctl), "atl": round(atl), "form": round(form), "zone": zone[1], "zone_note": zone[2],
+            "ramp": round(ramp, 1) if ramp is not None else None, "trend": trend, "source": source}
+
+
+def compute_focus(goals, today, fit, last4, load4):
+    """Plain-language training focus for the next race, from weeks out plus recent training."""
+    upcoming = sorted((g for g in goals if dt.date.fromisoformat(g["date"]) >= today), key=lambda g: g["date"])
+    if not upcoming:
+        return None
+    g = upcoming[0]
+    weeks = (dt.date.fromisoformat(g["date"]) - today).days // 7
+    if weeks > 24:
+        phase, summary = "Base", "Build the aerobic engine. Mostly easy volume, one quality session a week."
+    elif weeks > 12:
+        phase, summary = "Build", "Raise volume gradually and add race-pace work."
+    elif weeks > 2:
+        phase, summary = "Race-specific", "Train like the course. Long sessions at race effort."
+    else:
+        phase, summary = "Taper", "Cut volume, keep a little intensity, sleep a lot."
+
+    def kind(x):
+        return (x.get("type", "") + " " + x.get("name", "")).lower()
+
+    def trailish(x):
+        return any(k in kind(x) for k in ("trail", "ultra", "mile", "50k", "100k"))
+
+    is_tri = "tri" in kind(g)
+    # A trail race within a year shapes training too, even when a triathlon comes first.
+    trail_goal = next((x for x in upcoming if trailish(x)
+                       and (dt.date.fromisoformat(x["date"]) - today).days <= 365), None)
+    is_trail = trail_goal is not None
+    trail_name = trail_goal["name"] if trail_goal else g["name"]
+    tips = []
+
+    if fit:
+        if fit["form"] < -30:
+            tips.append(f"Form is {fit['form']}, deep in the red. Take two easy days before the next hard session.")
+        elif fit["form"] > 15 and phase != "Taper":
+            tips.append(f"You're fresh (form +{fit['form']}). Good day for a key workout.")
+        if fit.get("ramp") is not None and fit["ramp"] > 7:
+            tips.append(f"Fitness jumped {fit['ramp']:+.0f} in a week. Hold the load steady for a few days.")
+
+    swims = sum(1 for a in last4 if a["cat"] == "swim")
+    rides = sum(1 for a in last4 if a["cat"] == "ride")
+    if is_tri:
+        if swims < 4:
+            tips.append(f"{swims} swim{'s' if swims != 1 else ''} in 4 weeks. Aim for 2 a week to be ready for {g['name']}.")
+        if rides < 4:
+            tips.append(f"{rides} ride{'s' if rides != 1 else ''} in 4 weeks. Add a weekly ride to keep bike fitness.")
+    if is_trail or not is_tri:
+        long_target = {"Base": 25, "Build": 32, "Race-specific": 40, "Taper": 20}[phase]
+        if load4["long_run_km"] < long_target * 0.8:
+            tips.append(f"Longest run lately is {load4['long_run_km']} km. Work toward {long_target} km"
+                        f"{' for ' + trail_name if is_trail else ''}.")
+        if is_trail and load4["elev_m"] < 2000:
+            tips.append(f"{load4['elev_m']:,} m of climbing in 4 weeks. Add hills or stairs for {trail_name}.")
+    if load4["hours"] < 16:  # under ~4 h a week
+        tips.append(f"{load4['hours']} h over 4 weeks. Consistency first: 5 to 7 h a week is a solid {phase.lower()} target.")
+
+    then = [{"name": x["name"], "weeks": (dt.date.fromisoformat(x["date"]) - today).days // 7} for x in upcoming[1:3]]
+    return {"race": g["name"], "date": g["date"], "confirmed": g.get("date_confirmed", False), "weeks": weeks,
+            "phase": phase, "summary": summary, "tips": tips[:3], "then": then}
+
+
 def main():
     cfg = json.loads((ROOT / "config.json").read_text())
     tz = ZoneInfo(cfg.get("timezone", "America/Vancouver"))
@@ -178,6 +290,9 @@ def main():
         "count": len(last4),
     }
 
+    fitness = compute_fitness(acts, today)
+    focus = compute_focus(cfg.get("goals", []), today, fitness, last4, recent_load)
+
     # ---- privacy-trimmed routes
     def public_route(aid, eps):
         pts = tracks.get(aid, {}).get("route") or []
@@ -228,6 +343,9 @@ def main():
         "yoy": yoy,
         "streaks": streaks,
         "last4": recent_load,
+        "fitness": fitness,
+        "focus": focus,
+        "weather": cfg.get("weather"),
         "recent": recent,
         "heat": {"center": center, "radius_km": radius_km, "label": map_cfg.get("label"), "routes": heat},
         "count_all": len(acts),

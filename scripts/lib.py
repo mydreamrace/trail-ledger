@@ -165,6 +165,7 @@ def process_activity(summary, streams):
         "moving_s": summary.get("moving_time") or summary.get("elapsed_time") or 0,
         "elev_m": summary.get("total_elevation_gain") or 0,
         "hr": summary.get("average_heartrate"),
+        "load": summary.get("icu_training_load"),
         "race": bool(summary.get("race")),
     }
     track = {"id": rec["id"], "efforts": {}, "route": []}

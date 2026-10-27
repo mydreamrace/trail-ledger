@@ -4,6 +4,11 @@
   "location": "Langley, BC",
   "sports_line": "Run · Ride · Swim",
   "timezone": "America/Vancouver",
+  "weather": {
+    "place": "Langley",
+    "lat": 49.10,
+    "lng": -122.66
+  },
   "map": {
     "center": null,
     "radius_km": 55,

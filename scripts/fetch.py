@@ -112,6 +112,17 @@ def main():
 
     index_path.write_text(json.dumps(index, separators=(",", ":")))
     print(f"Done: {new} new, {updated} updated, {len(index)} total in cache.")
+
+    # Fitness (CTL), fatigue (ATL) and ramp rate, as Intervals.icu calculates them, for the last ~4 months.
+    w_oldest = (dt.date.today() - dt.timedelta(days=120)).isoformat()
+    try:
+        wellness = api_get(f"/athlete/{athlete}/wellness", {"oldest": w_oldest, "newest": dt.date.today().isoformat()}) or []
+        keep = [{"date": w.get("id"), "ctl": w.get("ctl"), "atl": w.get("atl"), "ramp": w.get("rampRate")}
+                for w in wellness if isinstance(w, dict) and w.get("id")]
+        (CACHE / "wellness.json").write_text(json.dumps(keep, separators=(",", ":")))
+        print(f"Saved {len(keep)} days of fitness data.")
+    except Exception as e:  # fitness is a nice-to-have; the site falls back to its own estimate
+        print("Couldn't fetch fitness data:", e)
     if skipped:
         print(f"Skipped {skipped} Strava-imported activities. Connect Coros directly in Intervals.icu to include them.")
 

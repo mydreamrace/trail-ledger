@@ -93,7 +93,8 @@ def main():
             moving = streams["time"][-1] if streams["time"] else dist / speed
             summary = {"id": f"s{n}", "name": name, "type": typ, "start_date_local": start.isoformat(),
                        "distance": round(dist), "moving_time": round(moving), "total_elevation_gain": round(elev),
-                       "average_heartrate": rng.randint(132, 156) if kind != "swim" else None}
+                       "average_heartrate": rng.randint(132, 156) if kind != "swim" else None,
+                       "icu_training_load": round(moving / 3600 * rng.uniform(45, 85))}
             rec, tr = process_activity(summary, streams)
             index[rec["id"]] = rec
             (CACHE / "tracks" / f"{rec['id']}.json").write_text(json.dumps(tr, separators=(",", ":")))
@@ -110,7 +111,8 @@ def main():
         n += 1
         streams = track(SPOTS[spot], dist, speed, wiggle=0.25)
         summary = {"id": f"s{n}", "name": name, "type": typ, "start_date_local": start.isoformat(), "distance": dist,
-                   "moving_time": streams["time"][-1], "total_elevation_gain": elev, "average_heartrate": 165, "race": True}
+                   "moving_time": streams["time"][-1], "total_elevation_gain": elev, "average_heartrate": 165, "race": True,
+                   "icu_training_load": round(streams["time"][-1] / 3600 * 95)}
         rec, tr = process_activity(summary, streams)
         index[rec["id"]] = rec
         (CACHE / "tracks" / f"{rec['id']}.json").write_text(json.dumps(tr, separators=(",", ":")))
