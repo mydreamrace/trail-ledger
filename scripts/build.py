@@ -443,13 +443,16 @@ def main():
     (OUT / "data").mkdir(parents=True)
     (OUT / "data/stats.json").write_text(json.dumps(stats, separators=(",", ":")))
 
-    # site/app.html is a page fragment (head bits, then <!--body-->, then content).
-    frag = (ROOT / "site/app.html").read_text()
-    head, _, body = frag.partition("<!--body-->")
-    (OUT / "index.html").write_text(
-        '<!doctype html>\n<html lang="en">\n<head>\n<meta charset="utf-8">\n'
-        '<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">\n'
-        '<meta name="robots" content="noindex">\n' + head + "</head>\n<body>\n" + body + "</body>\n</html>\n")
+    # site/*.html are page fragments (head bits, then <!--body-->, then content).
+    for src, dst in (("app.html", "index.html"), ("wall.html", "wall.html")):
+        frag_path = ROOT / "site" / src
+        if not frag_path.exists():
+            continue
+        head, _, body = frag_path.read_text().partition("<!--body-->")
+        (OUT / dst).write_text(
+            '<!doctype html>\n<html lang="en">\n<head>\n<meta charset="utf-8">\n'
+            '<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">\n'
+            '<meta name="robots" content="noindex">\n' + head + "</head>\n<body>\n" + body + "</body>\n</html>\n")
     (OUT / ".nojekyll").write_text("")
     size_kb = (OUT / "data/stats.json").stat().st_size // 1024
     print(f"Built site: {len(acts)} activities, {len(heat)} heatmap routes, stats.json {size_kb} KB, "

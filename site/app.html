@@ -311,7 +311,7 @@ function render(d){
       <div class="c-elev"><span class="k">Climb</span><span class="v num">${a.elev_m?nf.format(Math.round(a.elev_m))+" m":"n/a"}</span></div></div>`).join("")}</div>
   </section>
 
-  <footer>Built nightly from Coros via Intervals.icu · routes near home are hidden</footer>`;
+  <footer>Built nightly from Coros via Intervals.icu · routes near home are hidden · <a href="wall.html" style="color:inherit">Wall view</a></footer>`;
 
   weeklyChart(d.weekly);
   yoyChart(d.yoy);

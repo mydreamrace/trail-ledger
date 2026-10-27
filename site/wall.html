@@ -1,0 +1,222 @@
+<title>Trail Ledger Wall</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@600;800;900&family=Public+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<style>
+/* Wall view: one landscape screen, no scrolling. Header strip / map + races / PBs + today strip.
+   Sized from the viewport so it reads the same on a tablet, a monitor or a TV across the room.
+   Deliberately dark only: easier on the eyes at night and kind to TV panels. */
+:root{
+  --bg:#0b1210; --surface:#121b17; --ink:#e8efea; --muted:#8fa197; --line:#24302a;
+  --accent:#3cc9bb; --accent-soft:#143a35; --pb:#f2be3a; --ok:#7fcf84; --bad:#ff8a80;
+  --map-run:#46e0c8; --map-ride:#7eaaff;
+  --display:"Big Shoulders Display","Arial Narrow",Impact,sans-serif;
+  --body:"Public Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --mono:"IBM Plex Mono",ui-monospace,Menlo,Consolas,monospace;
+  color-scheme:dark;
+  font-size:calc(.52vw + .52vh);
+}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0;overflow:hidden;background:var(--bg);color:var(--ink);font-family:var(--body)}
+.num{font-variant-numeric:tabular-nums}
+.wall{height:100%;display:grid;grid-template-rows:auto minmax(0,1fr) auto;gap:1.2rem;
+  padding:1.6rem max(1.6rem,env(safe-area-inset-right,0px)) 1.6rem max(1.6rem,env(safe-area-inset-left,0px));
+  transition:transform 2s ease}
+.lbl{font-family:var(--mono);font-size:.8rem;letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
+
+/* header */
+.top{display:flex;justify-content:space-between;align-items:flex-end;gap:2rem}
+.top h1{margin:0;font-family:var(--display);font-weight:900;text-transform:uppercase;font-size:3.6rem;line-height:.9}
+.top h1 span{color:var(--accent)}
+.clock{display:flex;align-items:flex-end;gap:1.6rem;text-align:right}
+.clock .time{font-family:var(--display);font-weight:800;font-size:3.6rem;line-height:.9}
+.clock .date{font-size:1.05rem;color:var(--muted);line-height:1.3}
+
+/* middle: map + races */
+.mid{display:grid;grid-template-columns:1.35fr 1fr;gap:1.2rem;min-height:0}
+.mapbox{position:relative;border-radius:.8rem;overflow:hidden;background:#151a18;min-height:0}
+#map{position:absolute;inset:0;background:#151a18}
+.leaflet-container{background:#151a18}
+.leaflet-control-attribution{background:rgba(11,18,16,.7)!important;color:#7f9187!important;font-size:.6rem!important}
+.leaflet-control-attribution a{color:#a9bdb2!important}
+.heat-canvas{position:absolute;top:0;left:0;pointer-events:none}
+.map-over{position:absolute;z-index:800;left:0;right:0;bottom:0;padding:1.2rem 1.4rem;display:flex;justify-content:space-between;align-items:flex-end;gap:1.5rem;
+  background:linear-gradient(to top,rgba(11,18,16,.95),rgba(11,18,16,0));pointer-events:none}
+.season{display:flex;gap:2rem}
+.season div{display:flex;flex-direction:column}
+.season strong{font-family:var(--display);font-weight:800;font-size:3rem;line-height:1}
+.season span{font-family:var(--mono);font-size:.75rem;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+
+.races{display:flex;flex-direction:column;gap:1rem;min-height:0}
+.race{background:var(--surface);border:1px solid var(--line);border-radius:.8rem;padding:1rem 1.2rem;display:grid;grid-template-columns:auto 1fr;gap:.4rem 1.4rem;align-items:center;flex:1;min-height:0}
+.race .days{font-family:var(--display);font-weight:900;color:var(--accent);font-size:4.4rem;line-height:.85;grid-row:span 2}
+.race .days small{display:block;font-family:var(--mono);font-weight:400;font-size:.75rem;letter-spacing:.1em;color:var(--muted);text-transform:uppercase;margin-top:.3rem}
+.race h2{margin:0;font-family:var(--display);font-weight:800;font-size:1.9rem;text-transform:uppercase;line-height:.95}
+.race .where{font-size:.95rem;color:var(--muted)}
+.race.first{flex:1.5}
+.race.first .days{font-size:6.2rem}
+.race.first h2{font-size:2.5rem}
+.bars{grid-column:1 / -1;display:grid;grid-template-columns:repeat(3,1fr);gap:1rem;margin-top:.5rem}
+.bar .t{display:flex;justify-content:space-between;gap:.5rem;font-size:.85rem;margin-bottom:.35rem}
+.bar .t b{font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.bar .t span{color:var(--muted);white-space:nowrap}
+.track{position:relative;height:.55rem;background:var(--line);border-radius:1rem}
+.track i{position:absolute;left:0;top:0;bottom:0;border-radius:1rem;background:var(--accent)}
+.bar.behind .track i{background:var(--pb)}
+.track u{position:absolute;top:-.25rem;bottom:-.25rem;width:.15rem;margin-left:-.075rem;background:var(--ink);opacity:.6;border-radius:.1rem}
+
+/* bottom: PBs + today */
+.bot{display:grid;grid-template-columns:1.35fr 1fr;gap:1.2rem}
+.pbs{display:grid;grid-template-columns:repeat(6,1fr);background:var(--surface);border:1px solid var(--line);border-radius:.8rem;overflow:hidden}
+.pb{padding:.9rem 1rem;border-left:1px solid var(--line);display:flex;flex-direction:column;gap:.15rem;min-width:0}
+.pb:first-child{border-left:0}
+.pb .v{font-family:var(--display);font-weight:800;font-size:2.4rem;line-height:1}
+.pb .w{font-size:.8rem;color:var(--muted);white-space:nowrap}
+.pb.gold .v{color:var(--pb)}
+.today{display:grid;grid-template-columns:auto 1fr auto;gap:1.4rem;align-items:center;background:var(--surface);border:1px solid var(--line);border-radius:.8rem;padding:.9rem 1.2rem}
+.form{display:flex;flex-direction:column;gap:.2rem}
+.form strong{font-family:var(--display);font-weight:800;font-size:2.6rem;line-height:1}
+.chip{align-self:flex-start;font-family:var(--mono);font-size:.7rem;letter-spacing:.08em;text-transform:uppercase;padding:.15rem .55rem;border-radius:1rem;background:var(--accent-soft);color:var(--accent)}
+.chip.optimal{background:#1d3a20;color:var(--ok)}
+.chip.high-risk{background:#3d1c1a;color:var(--bad)}
+.chip.neutral{background:var(--line);color:var(--ink)}
+.tip{font-size:1.05rem;line-height:1.35;min-width:0}
+.tip .lbl{display:block;margin-bottom:.25rem}
+.wx{text-align:right;display:flex;flex-direction:column;align-items:flex-end;gap:.15rem}
+.wx strong{font-family:var(--display);font-weight:800;font-size:2.6rem;line-height:1}
+.wx span{font-size:.85rem;color:var(--muted);white-space:nowrap}
+.wx b{color:var(--accent);font-weight:600}
+.stale{color:var(--pb)}
+</style>
+<!--body-->
+<div class="wall" id="wall"><div class="lbl" style="align-self:center;justify-self:center">Loading…</div></div>
+
+<script>
+"use strict";
+const $=s=>document.querySelector(s);
+const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const nf=new Intl.NumberFormat("en-CA");
+function decode(str){const pts=[];let i=0,lat=0,lng=0;while(i<str.length){for(const k of [0,1]){let b,sh=0,r=0;do{b=str.charCodeAt(i++)-63;r|=(b&31)<<sh;sh+=5}while(b>=32);const d=(r&1)?~(r>>1):(r>>1);if(k===0)lat+=d;else lng+=d}pts.push([lat/1e5,lng/1e5])}return pts}
+function hms(s){s=Math.round(s);const h=Math.floor(s/3600),m=Math.floor(s%3600/60),x=s%60;return h?`${h}:${String(m).padStart(2,"0")}:${String(x).padStart(2,"0")}`:`${m}:${String(x).padStart(2,"0")}`}
+const fmtU=(v,u)=>u==="m"?`${nf.format(Math.round(v))} m`:u==="h"?`${(+v).toFixed(1)} h`:u==="km"?`${Math.round(v)} km`:(+v).toFixed(1).replace(/\.0$/,"");
+const dfmt=(iso,o)=>new Date(iso.length===10?iso+"T12:00":iso).toLocaleDateString("en-CA",o);
+const WMO={0:"Clear",1:"Mostly clear",2:"Partly cloudy",3:"Overcast",45:"Fog",48:"Fog",51:"Drizzle",53:"Drizzle",55:"Drizzle",61:"Light rain",63:"Rain",65:"Heavy rain",71:"Light snow",73:"Snow",75:"Heavy snow",80:"Showers",81:"Showers",82:"Heavy showers",85:"Snow showers",86:"Snow showers",95:"Thunderstorm",96:"Thunderstorm",99:"Thunderstorm"};
+
+let data=null, map=null, heat=null;
+
+async function loadData(){
+  try{
+    const r=await fetch("data/stats.json?t="+Date.now(),{cache:"no-store"});
+    if(!r.ok) throw 0;
+    data=await r.json(); render();
+  }catch(e){ if(!data) $("#wall").innerHTML='<div class="lbl" style="align-self:center;justify-self:center">Can\'t load training data. Retrying…</div>'; }
+}
+
+function render(){
+  const d=data, t=d.totals, now=new Date();
+  const goals=(d.goals||[]).map(g=>({...g,days:Math.ceil((new Date(g.date+"T08:00")-now)/864e5)})).filter(g=>g.days>=0).sort((a,b)=>a.days-b.days).slice(0,3);
+  const pbs=(d.pbs||[]).filter(p=>["5K","10K","Half","Marathon","50K","100K"].includes(p.label));
+  const year=new Map((d.pbs_year||[]).map(p=>[p.label,p]));
+  const f=d.fitness, fo=d.focus;
+  const ageH=(now-new Date(d.generated))/36e5;
+
+  $("#wall").innerHTML=`
+  <header class="top">
+    <h1>${esc(d.athlete)}'s <span>${esc(d.title)}</span></h1>
+    <div class="clock"><div class="date"><span id="dow"></span><br><span class="${ageH>36?"stale":""}">Synced ${dfmt(d.generated,{month:"short",day:"numeric"})}</span></div><div class="time num" id="time"></div></div>
+  </header>
+
+  <section class="mid">
+    <div class="mapbox"><div id="map"></div>
+      <div class="map-over">
+        <div><div class="lbl">Every route</div><div style="font-family:var(--display);font-weight:800;font-size:1.8rem;text-transform:uppercase">${esc(d.heat.label||"")}</div></div>
+        <div class="season num">
+          <div><strong>${nf.format(t.km)}</strong><span>km in ${t.year}</span></div>
+          <div><strong>${nf.format(t.elev_m)}</strong><span>m climbed</span></div>
+          <div><strong>${nf.format(t.hours)}</strong><span>hours</span></div>
+        </div>
+      </div>
+    </div>
+    <div class="races">${goals.map((g,i)=>`
+      <article class="race${i===0?" first":""}">
+        <div class="days num">${g.days}<small>days</small></div>
+        <div><h2>${esc(g.name)}</h2></div>
+        <div class="where">${esc(g.where)} · ${g.date_confirmed?dfmt(g.date,{month:"short",day:"numeric",year:"numeric"}):"≈ "+dfmt(g.date,{month:"short",year:"numeric"})}</div>
+        ${(g.readiness||[]).length?`<div class="bars">${g.readiness.map(b=>{
+          const fill=Math.max(2,Math.min(100,b.current/b.target*100)), mark=Math.min(100,b.expected/b.target*100);
+          return `<div class="bar ${b.status}"><div class="t"><b>${esc(b.label)}</b><span class="num">${fmtU(b.current,b.unit)} / ${fmtU(b.target,b.unit)}</span></div><div class="track"><i style="width:${fill.toFixed(1)}%"></i><u style="left:${mark.toFixed(1)}%"></u></div></div>`}).join("")}</div>`:""}
+      </article>`).join("")}</div>
+  </section>
+
+  <section class="bot">
+    <div class="pbs">${pbs.map(p=>{const y=year.get(p.label), gold=y&&y.is_pb;
+      return `<div class="pb${gold?" gold":""}"><span class="lbl">${esc(p.label)}</span><span class="v num">${p.value==null?"–":hms(p.value)}</span><span class="w">${p.value==null?"&nbsp;":(y&&y.value!=null?`${t.year}: ${hms(y.value)}`:dfmt(p.date,{month:"short",year:"numeric"}))}</span></div>`}).join("")}</div>
+    <div class="today">
+      ${f?`<div class="form"><span class="lbl">Form</span><strong class="num">${f.form>0?"+":""}${f.form}</strong><span class="chip ${f.zone.toLowerCase().replace(/\s+/g,"-")}">${esc(f.zone)}</span></div>`:"<div></div>"}
+      <div class="tip">${fo?`<span class="lbl">Focus · ${esc(fo.phase)} · ${esc(fo.race)}</span>${esc(fo.tips[0]||fo.summary)}`:""}</div>
+      <div class="wx" id="wx"></div>
+    </div>
+  </section>`;
+  tick(); drawMap(); loadWeather();
+}
+
+function tick(){
+  const n=new Date(), el=$("#time"), dw=$("#dow");
+  if(el) el.textContent=n.toLocaleTimeString("en-CA",{hour:"numeric",minute:"2-digit"}).replace(/\s?[ap]\.m\./i,"");
+  if(dw) dw.textContent=n.toLocaleDateString("en-CA",{weekday:"long",month:"long",day:"numeric"});
+}
+
+function drawMap(){
+  const h=data.heat, el=$("#map");
+  if(!window.L||!el) return;
+  if(map){map.remove();map=null}
+  const routes=h.routes.map(r=>({c:r.c,segs:r.p.map(decode)}));
+  map=L.map(el,{zoomControl:false,dragging:false,scrollWheelZoom:false,doubleClickZoom:false,boxZoom:false,keyboard:false,touchZoom:false,attributionControl:true});
+  L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}",
+    {maxNativeZoom:16,maxZoom:17,attribution:"Tiles &copy; Esri, &copy; OpenStreetMap contributors"}).addTo(map);
+  const dLat=h.radius_km/110.57, dLng=h.radius_km/(111.32*Math.cos(h.center[0]*Math.PI/180));
+  map.fitBounds([[h.center[0]-dLat*.55,h.center[1]-dLng*.55],[h.center[0]+dLat*.55,h.center[1]+dLng*.55]]);
+  const Heat=L.Layer.extend({
+    onAdd(m){this._c=L.DomUtil.create("canvas","heat-canvas");m.getPanes().overlayPane.appendChild(this._c);m.on("moveend zoomend resize",this._draw,this);this._draw()},
+    onRemove(m){this._c.remove();m.off("moveend zoomend resize",this._draw,this)},
+    _draw(){
+      const m=this._map,s=m.getSize(),dpr=devicePixelRatio||1,c=this._c,x=c.getContext("2d");
+      L.DomUtil.setPosition(c,m.containerPointToLayerPoint([0,0]));
+      c.width=s.x*dpr;c.height=s.y*dpr;c.style.width=s.x+"px";c.style.height=s.y+"px";
+      x.setTransform(dpr,0,0,dpr,0,0);x.clearRect(0,0,s.x,s.y);
+      x.globalCompositeOperation="lighter";x.lineCap="round";x.lineJoin="round";x.lineWidth=Math.max(1.6,s.x/700);
+      const a=Math.max(.12,Math.min(.6,7/Math.sqrt(routes.length+1))), b=m.getBounds().pad(.2);
+      for(const r of routes){x.strokeStyle=r.c==="ride"?"#7eaaff":"#46e0c8";x.globalAlpha=a;x.beginPath();
+        for(const seg of r.segs){if(!seg.some(p=>b.contains(p)))continue;seg.forEach((p,i)=>{const q=m.latLngToContainerPoint(p);i?x.lineTo(q.x,q.y):x.moveTo(q.x,q.y)})}
+        x.stroke()}
+      x.globalAlpha=1;x.globalCompositeOperation="source-over";
+    }
+  });
+  heat=new Heat().addTo(map);
+}
+
+async function loadWeather(){
+  const w=data.weather, box=$("#wx"); if(!w||!box) return;
+  try{
+    const r=await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${w.lat}&longitude=${w.lng}&current=temperature_2m,weather_code&hourly=temperature_2m,precipitation_probability&daily=temperature_2m_max,temperature_2m_min,sunrise,sunset&timezone=auto&forecast_days=1`);
+    const x=await r.json(), c=x.current, h=x.hourly, dl=x.daily;
+    const nowH=new Date(c.time).getHours(), sr=new Date(dl.sunrise[0]).getHours(), ss=new Date(dl.sunset[0]).getHours()+1;
+    let best=null;
+    for(let i=Math.max(nowH,sr);i<Math.min(ss,23);i++){const rain=Math.max(h.precipitation_probability[i]??100,h.precipitation_probability[i+1]??100),tp=(h.temperature_2m[i]+h.temperature_2m[i+1])/2,sc=rain+Math.abs(tp-10)*1.5;if(!best||sc<best.sc)best={i,rain,sc}}
+    const hr=n=>new Date(2000,0,1,n).toLocaleTimeString("en-CA",{hour:"numeric"}).replace(/\s?([ap])\.?m\.?/i,(m,a)=>a.toLowerCase());
+    box.innerHTML=`<span class="lbl">${esc(w.place)}</span><strong class="num">${Math.round(c.temperature_2m)}°</strong><span>${esc(WMO[c.weather_code]||"")} · H ${Math.round(dl.temperature_2m_max[0])}° L ${Math.round(dl.temperature_2m_min[0])}°</span>${best?`<span>Go: <b>${hr(best.i)}–${hr(best.i+2)}</b> · ${best.rain}% rain</span>`:"<span>Daylight's done</span>"}`;
+  }catch(e){box.innerHTML=`<span class="lbl">${esc(w.place)}</span><span>Forecast unavailable</span>`}
+}
+
+// keep it fresh without anyone touching it
+setInterval(tick,20e3);
+setInterval(loadData,30*60e3);             // new numbers after each nightly build
+setInterval(()=>{ if(data) loadWeather() },30*60e3);
+setInterval(()=>{ const n=new Date(); if(n.getHours()===4&&n.getMinutes()<1) location.reload() },60e3); // pick up site changes daily
+// nudge the whole layout a couple of pixels every few minutes so a TV panel doesn't burn in
+let shift=0;
+setInterval(()=>{ shift=(shift+1)%4; const o=[[0,0],[2,1],[1,2],[-1,1]][shift]; $("#wall").style.transform=`translate(${o[0]}px,${o[1]}px)` },5*60e3);
+addEventListener("resize",()=>{ if(map) map.invalidateSize() });
+loadData();
+</script>
