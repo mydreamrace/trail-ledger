@@ -10,37 +10,17 @@
    the year as a calendar + sport mix > records > every recent route as a shape.
    Colour carries meaning: one hue per sport, gold for records, traffic lights for readiness. */
 :root{
-  --bg:#f3f4f8; --paper:#ffffff; --ink:#141829; --muted:#5f667c; --line:#e1e4ed; --faint:#eceef4;
-  --run:#f2552c; --ride:#2f7be6; --swim:#0aa596; --other:#8a78f0; --gold:#e9a800; --gold-ink:#8a6200;
-  --go:#1f9d55; --warn:#e5a300; --stop:#d93a2b;
-  --map-bg:#11152a;
+  /* Black, single theme. Electric blue is the highlight; sports keep their own hues so charts stay readable. */
+  --bg:#000000; --paper:#111111; --ink:#f5f5f5; --muted:#9a9a9a; --line:#262626; --faint:#1b1b1b;
+  --accent:#2f8cff; --accent-soft:rgba(47,140,255,.14);
+  --run:#2f8cff; --ride:#a78bfa; --swim:#2dd4bf; --other:#8a8a8a; --gold:#fbbf24; --gold-ink:#fbbf24;
+  --go:#34d399; --warn:#fbbf24; --stop:#f87171; --lamp:#000000; --lamp-off:#2a2a2a;
+  --map-bg:#0a0a0a;
   --display:"Bricolage Grotesque","Arial Black",system-ui,sans-serif;
   --body:"Figtree",system-ui,-apple-system,"Segoe UI",sans-serif;
   --mono:"JetBrains Mono",ui-monospace,Menlo,Consolas,monospace;
-  color-scheme:light;
+  color-scheme:dark;
 }
-@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
-  --bg:#0d1020; --paper:#161a2d; --ink:#eef0f8; --muted:#9aa1ba; --line:#272c45; --faint:#1d2238;
-  --run:#ff6a45; --ride:#5ea3ff; --swim:#2ad3c2; --other:#a796ff; --gold:#ffc83d; --gold-ink:#ffc83d;
-  --go:#3fd07a; --warn:#f5c33b; --stop:#ff6b5e; color-scheme:dark}}
-:root[data-theme="dark"]{
-  --bg:#0d1020; --paper:#161a2d; --ink:#eef0f8; --muted:#9aa1ba; --line:#272c45; --faint:#1d2238;
-  --run:#ff6a45; --ride:#5ea3ff; --swim:#2ad3c2; --other:#a796ff; --gold:#ffc83d; --gold-ink:#ffc83d;
-  --go:#3fd07a; --warn:#f5c33b; --stop:#ff6b5e; color-scheme:dark}
-
-/* Skins: each forces its own palette regardless of the system theme. Asphalt is the default. */
-:root[data-skin="asphalt"]{--bg:#151413;--paper:#211f1d;--ink:#f3f0eb;--muted:#a7a29a;--line:#36332f;--faint:#2b2926;--map-bg:#161514;
-  --run:#ff6a45;--ride:#5ea3ff;--swim:#2ad3c2;--other:#b39cff;--gold:#ffc83d;--gold-ink:#ffc83d;--go:#3fd07a;--warn:#f5c33b;--stop:#ff6b5e;--lamp:#0c0b0a;--lamp-off:#34312d;color-scheme:dark}
-:root[data-skin="pine"]{--bg:#0e1611;--paper:#17221b;--ink:#eef4ef;--muted:#9fb3a5;--line:#2a3b30;--faint:#1f2d24;--map-bg:#0f1712;
-  --run:#ff7a4f;--ride:#62a8ff;--swim:#4fe0c8;--other:#b8a4ff;--gold:#ffcf4a;--gold-ink:#ffcf4a;--go:#4ade80;--warn:#f5c33b;--stop:#ff6b5e;--lamp:#09100c;--lamp-off:#2c3a31;color-scheme:dark}
-:root[data-skin="paper"]{--bg:#f1f1ee;--paper:#ffffff;--ink:#141414;--muted:#5e5d59;--line:#e0dfda;--faint:#ebeae6;--map-bg:#191918;
-  --run:#e8461c;--ride:#2369d8;--swim:#00988a;--other:#7a63e8;--gold:#e0a000;--gold-ink:#8a6200;--go:#18924c;--warn:#d99700;--stop:#d3341f;--lamp:#191918;--lamp-off:#3a3936;color-scheme:light}
-:root[data-skin="night"]{--bg:#0d1020;--paper:#161a2d;--ink:#eef0f8;--muted:#9aa1ba;--line:#272c45;--faint:#1d2238;--map-bg:#11152a;
-  --run:#ff6a45;--ride:#5ea3ff;--swim:#2ad3c2;--other:#a796ff;--gold:#ffc83d;--gold-ink:#ffc83d;--go:#3fd07a;--warn:#f5c33b;--stop:#ff6b5e;--lamp:#141829;--lamp-off:#2c3150;color-scheme:dark}
-.skins{display:flex;gap:6px;justify-content:flex-end;margin-top:6px}
-.skins button{width:22px;height:22px;border-radius:50%;border:2px solid var(--line);cursor:pointer;padding:0}
-.skins button[aria-pressed="true"]{border-color:var(--ink)}
-.skins button:focus-visible{outline:2px solid var(--ride);outline-offset:2px}
 *{box-sizing:border-box}
 body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--body);font-size:15px;line-height:1.5;
   padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:24px 64px}
@@ -49,7 +29,7 @@ body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--body);font
 h1,h2,h3{font-family:var(--display);margin:0;line-height:.95;text-wrap:balance;letter-spacing:-.01em}
 .kicker{font-family:var(--mono);font-size:11.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted)}
 .chapter{display:flex;align-items:baseline;gap:14px;margin-bottom:22px;flex-wrap:wrap}
-.chapter .no{font-family:var(--mono);font-size:12px;color:var(--muted)}
+.chapter .no{font-family:var(--mono);font-size:12px;color:var(--accent)}
 .chapter h2{font-size:clamp(28px,4vw,42px);font-weight:800}
 .chapter .ctrls{margin-left:auto}
 .status{color:var(--muted);text-align:center;padding:60px 0}
@@ -58,12 +38,12 @@ h1,h2,h3{font-family:var(--display);margin:0;line-height:.95;text-wrap:balance;l
 /* strip of sport colours, used like a race-bib band */
 .band{display:flex;height:6px;border-radius:3px;overflow:hidden}
 .band i{flex:1}
-.band i:nth-child(1){background:var(--run)} .band i:nth-child(2){background:var(--ride)} .band i:nth-child(3){background:var(--swim)} .band i:nth-child(4){background:var(--gold)}
+.band i{background:var(--accent)}
 
 /* ---------- hero ---------- */
 .mast{display:flex;justify-content:space-between;align-items:end;gap:16px;flex-wrap:wrap;margin-bottom:14px}
 .mast h1{font-size:clamp(44px,7.5vw,92px);font-weight:800;letter-spacing:-.03em}
-.mast h1 em{font-style:normal;color:var(--run)}
+.mast h1 em{font-style:normal;color:var(--accent)}
 .mast .sync{font-family:var(--mono);font-size:12px;color:var(--muted);text-align:right}
 .hero{display:grid;grid-template-columns:minmax(0,1.5fr) minmax(0,1fr);gap:16px;margin-top:16px}
 @media (max-width:860px){.hero{grid-template-columns:1fr}}
@@ -79,7 +59,7 @@ h1,h2,h3{font-family:var(--display);margin:0;line-height:.95;text-wrap:balance;l
 .map-tag span{font-family:var(--mono);font-size:10.5px;letter-spacing:.12em;text-transform:uppercase;opacity:.7}
 .chips{position:absolute;z-index:800;top:14px;left:14px;display:flex;gap:6px}
 .chips button{font:600 12px var(--body);color:#eef0f8;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.18);border-radius:999px;padding:4px 11px;cursor:pointer}
-.chips button[aria-pressed="true"]{background:#f3f0eb;color:#151413}
+.chips button[aria-pressed="true"]{background:var(--accent);color:#000;border-color:var(--accent)}
 .bigs{display:grid;grid-template-columns:1fr 1fr;gap:12px}
 .big{background:var(--paper);border-radius:16px;padding:16px 18px 18px;display:flex;flex-direction:column;gap:2px;position:relative;overflow:hidden}
 .big::before{content:"";position:absolute;left:0;top:0;bottom:0;width:5px;background:var(--c,var(--run))}
@@ -104,7 +84,7 @@ h1,h2,h3{font-family:var(--display);margin:0;line-height:.95;text-wrap:balance;l
 .wx{display:flex;align-items:center;gap:14px}
 .wx .t{font-family:var(--display);font-weight:800;font-size:54px;line-height:.9}
 .wx .go{font-size:13px}
-.wx .go b{color:var(--go)}
+.wx .go b{color:var(--accent)}
 
 /* ---------- race bibs ---------- */
 .bibs{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:18px}
@@ -162,8 +142,8 @@ h1,h2,h3{font-family:var(--display);margin:0;line-height:.95;text-wrap:balance;l
 /* ---------- records ---------- */
 .seg{display:inline-flex;gap:2px;padding:3px;border-radius:999px;background:var(--paper)}
 .seg button{font:600 13px var(--body);color:var(--muted);background:none;border:0;border-radius:999px;padding:6px 14px;cursor:pointer}
-.seg button[aria-pressed="true"]{background:var(--ink);color:var(--paper)}
-.seg button:focus-visible,.chips button:focus-visible{outline:2px solid var(--ride);outline-offset:1px}
+.seg button[aria-pressed="true"]{background:var(--accent);color:#000}
+.seg button:focus-visible,.chips button:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
 .recs{background:var(--paper);border-radius:16px;padding:6px 20px;overflow-x:auto}
 .rgrid{display:grid;align-items:center;min-width:max-content}
 .rgrid > *{padding:14px 10px 14px 0}
@@ -206,10 +186,6 @@ const fmtU=(v,u)=>u==="m"?`${nf.format(Math.round(v))} m`:u==="h"?`${(+v).toFixe
 const LIGHT={green:"On track",yellow:"Needs work",red:"Not ready"};
 const SPORTS=[["run","Run"],["ride","Ride"],["swim","Swim"],["other","Other"]];
 let D=null, recSport="run";
-const SKINS=[["asphalt","Asphalt","#211f1d"],["pine","Pine","#17221b"],["paper","Paper","#ffffff"],["night","Night","#161a2d"]];
-function skin(){const h=location.hash.slice(1);if(SKINS.some(s=>s[0]===h))return h;try{const v=localStorage.getItem("skin");if(SKINS.some(s=>s[0]===v))return v}catch(e){}return "asphalt"}
-function setSkin(k){document.documentElement.setAttribute("data-skin",k);try{localStorage.setItem("skin",k)}catch(e){}if(location.hash)history.replaceState(null,"","#"+k)}
-document.documentElement.setAttribute("data-skin",skin());
 
 async function main(){
   try{const r=await fetch("data/stats.json",{cache:"no-store"});if(!r.ok)throw 0;D=await r.json()}
@@ -227,8 +203,7 @@ function render(){
   <section>
     <div class="mast">
       <div><div class="kicker">${esc(d.location)} · ${t.year} season</div><h1>${esc(d.athlete)} in <em>motion</em></h1></div>
-      <div class="sync num">Updated ${new Date(d.generated).toLocaleString("en-CA",{month:"short",day:"numeric",hour:"numeric",minute:"2-digit"})}
-        <div class="skins" role="group" aria-label="Colour theme">${SKINS.map(([k,l,c])=>`<button type="button" id="sk-${k}" data-skin="${k}" title="${l}" aria-label="${l} theme" aria-pressed="${k===skin()}" style="background:${c}"></button>`).join("")}</div></div>
+      <div class="sync num">Updated ${new Date(d.generated).toLocaleString("en-CA",{month:"short",day:"numeric",hour:"numeric",minute:"2-digit"})}</div>
     </div>
     <div class="band"><i></i><i></i><i></i><i></i></div>
     <div class="hero">
@@ -238,10 +213,10 @@ function render(){
         <div class="map-tag"><span>Every ${t.year} route</span><b>${esc(d.heat.label||"Home turf")}</b></div>
       </div>
       <div class="bigs">
-        <div class="big" style="--c:var(--run)"><span class="kicker">${t.year} distance</span><span class="v num">${nf.format(t.km)}<span class="u">km</span></span><span class="fun">≈ <b>${Math.round(marathons)} marathons</b></span></div>
-        <div class="big" style="--c:var(--ride)"><span class="kicker">${t.year} time moving</span><span class="v num">${nf.format(t.hours)}<span class="u">h</span></span><span class="fun"><b>${(t.hours/Math.max(1,dayOfYear(now))*7).toFixed(1)} h</b> a week</span></div>
-        <div class="big" style="--c:var(--gold)"><span class="kicker">${t.year} climbing</span><span class="v num">${nf.format(t.elev_m)}<span class="u">m</span></span><span class="fun">≈ <b>${everest.toFixed(1)} Everests</b></span></div>
-        <div class="big" style="--c:var(--swim)"><span class="kicker">${t.year} activities</span><span class="v num">${nf.format(t.count)}</span><span class="fun"><b>${(d.year_days||[]).length}</b> active days</span></div>
+        <div class="big" style="--c:var(--accent)"><span class="kicker">${t.year} distance</span><span class="v num">${nf.format(t.km)}<span class="u">km</span></span><span class="fun">≈ <b>${Math.round(marathons)} marathons</b></span></div>
+        <div class="big" style="--c:var(--accent)"><span class="kicker">${t.year} time moving</span><span class="v num">${nf.format(t.hours)}<span class="u">h</span></span><span class="fun"><b>${(t.hours/Math.max(1,dayOfYear(now))*7).toFixed(1)} h</b> a week</span></div>
+        <div class="big" style="--c:var(--accent)"><span class="kicker">${t.year} climbing</span><span class="v num">${nf.format(t.elev_m)}<span class="u">m</span></span><span class="fun">≈ <b>${everest.toFixed(1)} Everests</b></span></div>
+        <div class="big" style="--c:var(--accent)"><span class="kicker">${t.year} activities</span><span class="v num">${nf.format(t.count)}</span><span class="fun"><b>${(d.year_days||[]).length}</b> active days</span></div>
       </div>
     </div>
   </section>
@@ -278,7 +253,6 @@ function render(){
 
   <footer>Built nightly from Coros via Intervals.icu · routes near home are hidden · <a href="index.html">Classic view</a> · <a href="wall.html">Wall view</a></footer>`;
 
-  document.querySelectorAll(".skins button").forEach(b=>b.onclick=()=>{setSkin(b.dataset.skin);document.querySelectorAll(".skins button").forEach(o=>o.setAttribute("aria-pressed",String(o===b)))});
   document.querySelectorAll("[data-rs]").forEach(b=>b.onclick=()=>{recSport=b.dataset.rs;document.querySelectorAll("[data-rs]").forEach(o=>o.setAttribute("aria-pressed",String(o===b)));drawRecs()});
   drawCalendar(); drawRecs(); measureRoutes();
   if(d.weather) loadWeather(d.weather);
@@ -306,7 +280,7 @@ function focusCard(fo,f){
 }
 
 /* ---------- race bibs ---------- */
-const BIBC=["var(--run)","var(--ride)","var(--swim)","var(--other)"];
+const BIBC=["var(--accent)","var(--accent)","var(--accent)","var(--accent)"];
 function bib(g,i){
   const bars=(g.readiness||[]).map(b=>{const fill=Math.max(2,Math.min(100,b.current/b.target*100)),mark=Math.min(100,b.expected/b.target*100);
     return `<div class="bar ${b.status}" title="${LIGHT[b.status]}: about ${fmtU(b.expected,b.unit)} expected by now"><div class="t"><b>${esc(b.label)}</b><span class="num">${fmtU(b.current,b.unit)} / ${fmtU(b.target,b.unit)}</span></div><div class="track"><i style="width:${fill.toFixed(1)}%"></i><u style="left:${mark.toFixed(1)}%"></u></div></div>`}).join("");
@@ -433,7 +407,7 @@ function heatmap(h, year){
       x.setTransform(dpr,0,0,dpr,0,0);x.clearRect(0,0,s.x,s.y);
       const z=m.getZoom(),b=m.getBounds().pad(.2),shown=routes.filter(r=>sport==="all"||r.c===sport);
       x.globalCompositeOperation="lighter";x.lineCap="round";x.lineJoin="round";x.lineWidth=z>=15?3:z>=13?2.2:1.6;
-      const col={run:"#ff6a45",ride:"#5ea3ff"}, a=Math.max(.12,Math.min(.6,7/Math.sqrt(shown.length+1)));
+      const col={run:"#2f8cff",ride:"#a78bfa"}, a=Math.max(.12,Math.min(.6,7/Math.sqrt(shown.length+1)));
       for(const r of shown){x.strokeStyle=col[r.c]||"#a796ff";x.globalAlpha=a;x.beginPath();
         for(const seg of r.segs){if(!seg.some(p=>b.contains(p)))continue;seg.forEach((p,i)=>{const q=m.latLngToContainerPoint(p);i?x.lineTo(q.x,q.y):x.moveTo(q.x,q.y)})}
         x.stroke()}
