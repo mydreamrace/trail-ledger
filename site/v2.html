@@ -198,7 +198,7 @@ function render(){
   const goals=(d.goals||[]).map(g=>({...g,days:Math.ceil((new Date(g.date+"T08:00")-now)/864e5)})).filter(g=>g.days>=0).sort((a,b)=>a.days-b.days);
   const everest=t.elev_m/8849, marathons=t.km/42.195;
   $("#app").innerHTML=`
-  ${d.sample?'<div class="sample">Sample data for testing. Your real history replaces it on the first nightly run.</div>':""}
+  ${d.sample?'<div class="sample">Sample data for testing. Your real history replaces it on the first scheduled run.</div>':""}
 
   <section>
     <div class="mast">
@@ -251,7 +251,7 @@ function render(){
     <div class="routes">${d.shapes.map(shape).join("")}</div>
   </section>`:""}
 
-  <footer>Built nightly from Coros via Intervals.icu · routes near home are hidden · <a href="index.html">Classic view</a> · <a href="wall.html">Wall view</a></footer>`;
+  <footer>Updated every 12 hours from Coros via Intervals.icu · routes near home are hidden · <a href="index.html">Classic view</a> · <a href="wall.html">Wall view</a></footer>`;
 
   document.querySelectorAll("[data-rs]").forEach(b=>b.onclick=()=>{recSport=b.dataset.rs;document.querySelectorAll("[data-rs]").forEach(o=>o.setAttribute("aria-pressed",String(o===b)));drawRecs()});
   drawCalendar(); drawRecs(); measureRoutes();

@@ -1,8 +1,8 @@
-name: Nightly update
+name: Twice-daily update
 
 on:
   schedule:
-    - cron: "17 10 * * *" # 3:17 AM Pacific in summer, 2:17 AM in winter
+    - cron: "17 10,22 * * *" # every 12 hours: 2:17 AM and 2:17 PM Pacific in winter, 3:17 in summer
   workflow_dispatch: # "Run workflow" button for an instant refresh after a race
   push:
     branches: [main]

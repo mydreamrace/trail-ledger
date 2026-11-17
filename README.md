@@ -1,9 +1,9 @@
 # Trail Ledger
 
-A personal training site built from my Coros watch. Every night a GitHub Action pulls new activities from Intervals.icu, works out PBs and training trends, and redeploys the site on GitHub Pages.
+A personal training site built from my Coros watch. Every 12 hours a GitHub Action pulls new activities from Intervals.icu, works out PBs and training trends, and redeploys the site on GitHub Pages.
 
 ```
-Coros watch → Intervals.icu → GitHub Action (nightly) → GitHub Pages
+Coros watch → Intervals.icu → GitHub Action (every 12 h) → GitHub Pages
 ```
 
 ## What's on the page
@@ -44,13 +44,13 @@ Repo > Settings > Pages > Build and deployment > Source: **GitHub Actions**.
 
 ### 5. First run
 
-Repo > Actions > Nightly update > Run workflow. The first run downloads your whole history and can take 20 to 60 minutes. After that, nightly runs take under a minute.
+Repo > Actions > Twice-daily update > Run workflow. The first run downloads your whole history and can take 20 to 60 minutes. After that, each run takes under a minute.
 
 Your site will be at `https://<your-username>.github.io/<repo-name>/`.
 
 ## Day to day
 
-- Runs every night around 3 AM Pacific. Hit **Run workflow** on the Actions tab (works on the GitHub phone app) to refresh right after a race.
+- Runs every 12 hours, around 2 AM and 2 PM Pacific (3 AM and 3 PM in summer). Hit **Run workflow** on the Actions tab (works on the GitHub phone app) to refresh right after a race.
 - Race goals, title and map settings live in `config.json`. Edit it on github.com and the site rebuilds on save. Set `date_confirmed` to `true` once a race date is announced.
 - Each race in `config.json` has a `readiness` list: up to three bars on its countdown card. `target` is where you want your last 4 weeks of training to be by race day. The marker on each bar shows where you'd typically be at this many weeks out (about half at 30+ weeks, rising to the full target 3 weeks out). Available metrics: `swims_per_week`, `rides_per_week`, `ride_hours_per_week`, `long_ride_km`, `run_km_per_week`, `run_hours_per_week`, `long_run_km`, `climb_per_week`.
 - `zwift.category` is shown in the Power row. Zwift doesn't share it, so update it here when it changes. `weight_kg` is used for W/kg when your watch doesn't send weight to Intervals.
@@ -83,4 +83,4 @@ With real data, set `INTERVALS_API_KEY` and `INTERVALS_ATHLETE_ID`, run `python 
 | `scripts/sample_data.py` | fake data for testing |
 | `site/app.html` | the page itself |
 | `config.json` | name, races, map settings |
-| `.github/workflows/nightly.yml` | the nightly job |
+| `.github/workflows/nightly.yml` | the twice-daily job |

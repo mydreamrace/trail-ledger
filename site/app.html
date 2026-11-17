@@ -204,7 +204,7 @@ function render(){
   const healthBits=[h.rhr&&`Resting HR ${Math.round(h.rhr.value)}`, h.hrv&&`HRV ${Math.round(h.hrv.value)}`, h.sleep_s&&`Sleep ${(h.sleep_s.value/3600).toFixed(1)} h`].filter(Boolean).join(" · ");
 
   $("#app").innerHTML = `
-  ${d.sample?`<div class="sample">Sample data for testing. Your Intervals.icu history replaces it on the first nightly run.</div>`:""}
+  ${d.sample?`<div class="sample">Sample data for testing. Your Intervals.icu history replaces it on the first scheduled run.</div>`:""}
   <div class="top">
     <header>
       <h1>${esc(d.athlete)}'s <span>${esc(d.title)}</span></h1>
@@ -271,7 +271,7 @@ function render(){
       <div class="c-pace"><span class="k">${a.cat==="ride"?"Speed":"Pace"}</span><span class="v num">${pace(a)}</span></div></div>`).join("")}</div>
   </section>
 
-  <footer>Built nightly from Coros via Intervals.icu · routes near home are hidden · <a href="wall.html">Wall view</a></footer>`;
+  <footer>Updated every 12 hours from Coros via Intervals.icu · routes near home are hidden · <a href="wall.html">Wall view</a></footer>`;
 
   document.querySelectorAll("[data-rs]").forEach(b=>b.onclick=()=>{recSport=b.dataset.rs;setPressed("[data-rs]",b);drawRecs()});
   document.querySelectorAll("[data-cm]").forEach(b=>b.onclick=()=>{chartMode=b.dataset.cm;setPressed("[data-cm]",b);drawTraining()});

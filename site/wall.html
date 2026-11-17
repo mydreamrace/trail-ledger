@@ -213,7 +213,7 @@ async function loadWeather(){
 
 // keep it fresh without anyone touching it
 setInterval(tick,20e3);
-setInterval(loadData,30*60e3);             // new numbers after each nightly build
+setInterval(loadData,30*60e3);             // new numbers after each scheduled build
 setInterval(()=>{ if(data) loadWeather() },30*60e3);
 setInterval(()=>{ const n=new Date(); if(n.getHours()===4&&n.getMinutes()<1) location.reload() },60e3); // pick up site changes daily
 // nudge the whole layout a couple of pixels every few minutes so a TV panel doesn't burn in
