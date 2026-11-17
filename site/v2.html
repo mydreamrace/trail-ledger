@@ -169,9 +169,58 @@ footer a{color:inherit}
   .route svg path{stroke-dasharray:var(--len);stroke-dashoffset:var(--len);animation:draw 1.4s ease-out forwards;animation-delay:var(--dl)}
   @keyframes draw{to{stroke-dashoffset:0}}
 }
+
+/* ---------- poster mode (poster.html): a fixed 1080 x 1920 portrait canvas for a framed screen ----------
+   No scrolling, no buttons. The canvas scales to fit whatever screen it is on. */
+html.poster,html.poster body{height:100%;overflow:hidden;cursor:none}
+html.poster body{padding:0;display:flex;align-items:center;justify-content:center}
+html.poster .stage{width:1080px;height:1920px;flex:none;transform-origin:center center;overflow:hidden;padding:36px 40px 28px}
+html.poster .wrap{max-width:none;gap:26px}
+html.poster .mast{margin-bottom:10px}
+html.poster .mast h1{font-size:84px}
+html.poster .mast .sync{font-size:14px}
+html.poster .hero{grid-template-columns:minmax(0,1.45fr) minmax(0,1fr)}
+html.poster .hero{margin-top:14px}
+html.poster .mapcard{min-height:370px}
+html.poster .big{padding:14px 16px 14px}
+html.poster .big .v{font-size:46px}
+html.poster .big .fun{font-size:15px}
+html.poster .today{grid-template-columns:auto minmax(0,1fr) auto}
+html.poster .tcard{padding:12px 18px}
+html.poster .dial svg{width:120px}
+html.poster .focus p{font-size:18px}
+html.poster .chapter{margin-bottom:12px}
+html.poster .chapter h2{font-size:34px}
+html.poster .bibs{grid-template-columns:repeat(3,minmax(0,1fr));gap:16px}
+html.poster .bib .body{padding:12px 18px 16px;gap:10px}
+html.poster .bib .digits{font-size:78px}
+html.poster .bars{gap:8px;padding-top:10px}
+html.poster .bar .t{font-size:14px}
+html.poster .year{grid-template-columns:minmax(0,1fr) 270px}
+html.poster .panel{padding:14px 18px}
+html.poster .mix{display:grid;grid-template-columns:120px 1fr;align-items:center;gap:6px 12px}
+html.poster .mix .kicker{grid-column:1 / -1}
+html.poster .mix svg{width:120px;height:120px}
+html.poster .mix ul{font-size:13px;gap:8px}
+html.poster .mix li{display:block}
+html.poster .mix li span{display:block}
+html.poster .mix li span:last-child{padding-left:18px;font-size:12px}
+html.poster .ystats{margin-top:12px;padding-top:10px}
+html.poster .cal{min-width:0}
+html.poster .ystats strong{font-size:30px}
+html.poster .ystats span,html.poster .legend{font-size:13px}
+html.poster .recs{padding:2px 18px}
+html.poster .rgrid > *{padding:10px 8px 10px 0}
+html.poster .rgrid .sep{padding:0}
+html.poster .rec .v{font-size:23px}
+html.poster .rec .d{font-size:13px}
+html.poster .routes{grid-template-columns:repeat(10,minmax(0,1fr));gap:10px}
+html.poster .route{padding:8px 8px 6px}
+html.poster .route span{font-size:12px}
+html.poster .chips,html.poster .leaflet-control-zoom,html.poster .ctrls,html.poster footer,html.poster .foot,html.poster .sample{display:none}
 </style>
 <!--body-->
-<div class="wrap" id="app"><div class="status">Loading your training data…</div></div>
+<div class="stage" id="stage"><div class="wrap" id="app"><div class="status">Loading your training data…</div></div></div>
 
 <script>
 "use strict";
@@ -186,10 +235,17 @@ const fmtU=(v,u)=>u==="m"?`${nf.format(Math.round(v))} m`:u==="h"?`${(+v).toFixe
 const LIGHT={green:"On track",yellow:"Needs work",red:"Not ready"};
 const SPORTS=[["run","Run"],["ride","Ride"],["swim","Swim"],["other","Other"]];
 let D=null, recSport="run";
+// Poster mode: poster.html (or ?poster) shows everything on one fixed portrait canvas for a framed screen.
+const POSTER=/poster/.test(location.pathname)||new URLSearchParams(location.search).has("poster");
+if(POSTER){document.documentElement.classList.add("poster");
+  const fit=()=>{const s=$("#stage");if(s)s.style.transform=`scale(${Math.min(innerWidth/1080,innerHeight/1920)})`};
+  addEventListener("resize",fit);document.addEventListener("DOMContentLoaded",fit);setTimeout(fit,0);
+  setInterval(()=>location.reload(),30*60e3); // fresh weather, and new numbers after each 12-hour update
+}
 
 async function main(){
   try{const r=await fetch("data/stats.json",{cache:"no-store"});if(!r.ok)throw 0;D=await r.json()}
-  catch(e){$("#app").innerHTML='<div class="status">Couldn\'t load your training data. Try reloading.</div>';return}
+  catch(e){$("#app").innerHTML='<div class="status">Couldn\'t load your training data. Try reloading.</div>';if(POSTER)setTimeout(()=>location.reload(),5*60e3);return}
   render();
 }
 
@@ -251,12 +307,22 @@ function render(){
     <div class="routes">${d.shapes.map(shape).join("")}</div>
   </section>`:""}
 
-  <footer>Updated every 12 hours from Coros via Intervals.icu · routes near home are hidden · <a href="index.html">Classic view</a> · <a href="wall.html">Wall view</a></footer>`;
+  <footer>Updated every 12 hours from Coros via Intervals.icu · routes near home are hidden · <a href="poster.html">Poster view</a></footer>`;
 
   document.querySelectorAll("[data-rs]").forEach(b=>b.onclick=()=>{recSport=b.dataset.rs;document.querySelectorAll("[data-rs]").forEach(o=>o.setAttribute("aria-pressed",String(o===b)));drawRecs()});
   drawCalendar(); drawRecs(); measureRoutes();
   if(d.weather) loadWeather(d.weather);
   heatmap(d.heat, d.totals.year);
+  if(POSTER){fitPoster();document.fonts.ready.then(fitPoster)}
+}
+function fitPoster(){
+  const stage=$("#stage"), grid=document.querySelector(".routes"); if(!stage) return;
+  const over=()=>stage.scrollHeight>stage.clientHeight+1;
+  if(grid){const per=10; let n=grid.children.length-(grid.children.length%per||0);
+    [...grid.children].slice(n).forEach(c=>c.remove());
+    while(over()&&grid.children.length){[...grid.children].slice(-per).forEach(c=>c.remove())}
+    if(!grid.children.length) grid.closest("section").remove();
+    else{const h=grid.closest("section").querySelector("h2");if(h)h.textContent=`Last ${grid.children.length} adventures`}}
 }
 function dayOfYear(n){return Math.floor((n-new Date(n.getFullYear(),0,0))/864e5)}
 
@@ -354,7 +420,7 @@ function drawRecs(){
   }
   if(recSport==="swim"){ color="var(--swim)"; cols=[col("Longest swim","Long swim")]; }
   const n=Math.max(cols.length,6);
-  $("#recs").innerHTML=`<div class="rgrid" style="grid-template-columns:84px repeat(${n},minmax(92px,1fr));--c:${color}">
+  $("#recs").innerHTML=`<div class="rgrid" style="grid-template-columns:${POSTER?72:84}px repeat(${n},minmax(${POSTER?84:92}px,1fr));--c:${color}">
     <div class="lab">All time</div>${cols.map(c=>c.a).join("")}${"<div></div>".repeat(n-cols.length)}
     <div class="sep"></div>
     <div class="lab y">${yr}</div>${cols.map(c=>c.y).join("")}${"<div></div>".repeat(n-cols.length)}</div>`;
@@ -392,8 +458,8 @@ async function loadWeather(w){
 function heatmap(h, year){
   const el=$("#map"); if(!window.L||!el) return;
   const routes=h.routes.filter(r=>!year||r.y===year).map(r=>({c:r.c,segs:r.p.map(decode)}));
-  const map=L.map(el,{zoomControl:false,scrollWheelZoom:false,minZoom:3,maxZoom:17});
-  L.control.zoom({position:"topright"}).addTo(map);
+  const map=L.map(el,{zoomControl:false,scrollWheelZoom:false,minZoom:3,maxZoom:17,dragging:!POSTER,doubleClickZoom:!POSTER,touchZoom:!POSTER,keyboard:!POSTER});
+  if(!POSTER) L.control.zoom({position:"topright"}).addTo(map);
   L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}",{maxNativeZoom:16,maxZoom:17,attribution:"Tiles &copy; Esri, HERE, Garmin, &copy; OpenStreetMap contributors"}).addTo(map);
   const dLat=h.radius_km/110.57, dLng=h.radius_km/(111.32*Math.cos(h.center[0]*Math.PI/180));
   map.fitBounds([[h.center[0]-dLat*.55,h.center[1]-dLng*.55],[h.center[0]+dLat*.55,h.center[1]+dLng*.55]]);

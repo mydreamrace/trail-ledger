@@ -2,7 +2,7 @@
 
 Reads:   config.json, data/cache/activities.json, data/cache/tracks/*.json
          privacy zones from the PRIVACY_ZONES env var (a GitHub secret) or privacy.local.json
-Writes:  public/index.html, public/data/stats.json
+Writes:  public/index.html, public/v2.html, public/poster.html, public/data/stats.json
 """
 import datetime as dt
 import json
@@ -540,7 +540,9 @@ def main():
     (OUT / "data/stats.json").write_text(json.dumps(stats, separators=(",", ":")))
 
     # site/*.html are page fragments (head bits, then <!--body-->, then content).
-    for src, dst in (("app.html", "index.html"), ("wall.html", "wall.html"), ("v2.html", "v2.html")):
+    # v2.html is the only page. It is published three times: the main page, the old v2 link, and the
+    # framed-screen poster (the page switches to its fixed portrait layout when the file is named poster.html).
+    for src, dst in (("v2.html", "index.html"), ("v2.html", "v2.html"), ("v2.html", "poster.html")):
         frag_path = ROOT / "site" / src
         if not frag_path.exists():
             continue

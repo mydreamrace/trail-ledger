@@ -8,12 +8,26 @@ Coros watch → Intervals.icu → GitHub Action (every 12 h) → GitHub Pages
 
 ## What's on the page
 
-- Heatmap of every run and ride (drag to pan, scroll or pinch to zoom, double-click to reset)
-- Countdowns to upcoming races, plus the last four weeks of training
-- PB board: fastest 5K, 10K, half, marathon and 50K found inside any run, plus longest run, biggest climb and longest ride
-- Weekly hours by sport for the last 16 weeks
-- Year-over-year running distance, run streak and weeks over 8 hours
-- Latest six activities with a mini route map
+One page, `site/v2.html`, published as `index.html` (the main page) and `poster.html`.
+
+- 2026 season totals and a heatmap of every run and ride this year
+- Form today, training focus, resting HR, HRV, sleep and local weather
+- Race bibs: countdowns with readiness lights and bars against race-day targets
+- The year day by day as a calendar, plus the sport mix
+- Records for running, biking (power) and swimming, all time and this year
+- The last 40 routes drawn as shapes
+
+## Poster view (framed screen)
+
+`poster.html` is the same page laid out on a fixed 1080 x 1920 portrait canvas for a monitor turned on its side and framed. It never scrolls, hides the buttons and the mouse pointer, shows as many whole rows of route shapes as fit, scales itself to any screen size, and reloads every 30 minutes.
+
+To run it on a Raspberry Pi: rotate the display to portrait in Screen Configuration, turn off screen blanking in `raspi-config` (Display Options), and open the page full-screen at login by adding this line to `~/.config/labwc/autostart`:
+
+```
+chromium --kiosk --noerrdialogs --disable-infobars --incognito https://mydreamrace.github.io/trail-ledger/poster.html
+```
+
+(On older Raspberry Pi OS the browser is called `chromium-browser`.)
 
 ## One-time setup
 
@@ -78,9 +92,9 @@ With real data, set `INTERVALS_API_KEY` and `INTERVALS_ATHLETE_ID`, run `python 
 | Path | Purpose |
 | --- | --- |
 | `scripts/fetch.py` | pulls new activities and GPS tracks from Intervals.icu |
-| `scripts/build.py` | turns the cache into `public/data/stats.json` and `public/index.html` |
+| `scripts/build.py` | turns the cache into `public/data/stats.json` and the published pages |
 | `scripts/lib.py` | best efforts, route simplifying, privacy trimming, polyline encoding |
 | `scripts/sample_data.py` | fake data for testing |
-| `site/app.html` | the page itself |
+| `site/v2.html` | the page itself (main page and poster view) |
 | `config.json` | name, races, map settings |
 | `.github/workflows/nightly.yml` | the twice-daily job |
